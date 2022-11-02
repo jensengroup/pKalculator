@@ -13,7 +13,7 @@ def main():
     # input_mol = Chem.MolFromSmiles('c1ccccc1O')
 
 
-    best_conf_energy_neutral, best_conf_mol_neutral = calculateEnergy((input_mol, name))
+    best_conf_energy_neutral, _ = calculateEnergy((input_mol, name))
     print(f'E_neutral = {best_conf_energy_neutral}')
 
 
@@ -21,11 +21,11 @@ def main():
     lst_mol_deprot = [Chem.MolFromSmiles(smi) for smi in lst_smiles_deprot]
 
     for name, mol in list(zip(lst_name_deprot, lst_mol_deprot)):
-        best_conf_energy_deprot, best_conf_mol_deprot = calculateEnergy((input_mol, name))
+        best_conf_energy_deprot, _ = calculateEnergy((mol, name))
         print(name)
         print(f'E_deptrot = {best_conf_energy_deprot}')
         rel_E = best_conf_energy_deprot - best_conf_energy_neutral
-        print(f'd_G = {rel_E:.2f} kJ/mol')
+        print(f'd_G = {rel_E:.2f} kcal/mol')
 
     
 

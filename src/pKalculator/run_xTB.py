@@ -108,7 +108,7 @@ def run_xTB(args): #(xyzfile, molecule, chrg=0, spin=0, method=' 1', solvent='',
             energy = line.split()[3]
 
     try: #check if the molecular energy was found.
-        energy = float(energy) * Hartree * mol/kJ #convert energy from Hartree to kJ/mol #* mol/kcal #convert energy from Hartree to kcal/mol
+        energy = float(energy) * Hartree * mol/kcal #convert energy from Hartree to kcal/mol
     except Exception as e:
         print(e, xyzfile)
         energy = 60000.0
