@@ -28,19 +28,14 @@ import subprocess
 from rdkit import Chem
 from ase.units import Hartree, mol, kcal, kJ
 
-import heckqm.molecule_formats as molfmt
+import molecule_formats as molfmt
 
 # xTB path and calc setup
-path = os.getcwd()
+path = os.getcwd().replace('/src/pKalculator', '')
 XTBHOME = os.path.join(path, 'dep/xtb-6.4.1')
 XTBPATH = os.path.join(path, 'dep/xtb-6.4.1/share/xtb')
 MANPATH = os.path.join(path, 'dep/xtb-6.4.1/share/man')
 LD_LIBRARY_PATH = os.path.join(path, 'dep/xtb-6.4.1/lib')
-
-# XTBHOME = '/groups/kemi/ree/PhD/applications/HeckQM/dep/xtb-6.4.1'
-# XTBPATH = '/groups/kemi/ree/PhD/applications/HeckQM/dep/xtb-6.4.1/share/xtb'
-# MANPATH = '/groups/kemi/ree/PhD/applications/HeckQM/dep/xtb-6.4.1/share/man'
-# LD_LIBRARY_PATH = '/groups/kemi/ree/PhD/applications/HeckQM/dep/xtb-6.4.1/lib'
 
 OMP_NUM_THREADS = '1'
 MKL_NUM_THREADS = '1'
@@ -116,94 +111,6 @@ def run_xTB(args): #(xyzfile, molecule, chrg=0, spin=0, method=' 1', solvent='',
         energy = float(energy) * Hartree * mol/kJ #convert energy from Hartree to kJ/mol #* mol/kcal #convert energy from Hartree to kcal/mol
     except Exception as e:
         print(e, xyzfile)
-        energy = 60000.0
-
-    return energy, mol_calc_path
-
-
-def make_xcontrol_contrain_file(molecule, core, path):
-    
-    # Locate atoms to contrain
-    match = np.array(molecule.GetSubstructMatch(core)) + 1 # indexing starts with 0 for RDKit but 1 for xTB
-    match = sorted(match)
-    assert len(match) == core.GetNumAtoms(), 'ERROR! Complete match not found.'
-
-    # Write the xcontrol file
-    fo = open(os.path.join(path, 'xcontrol'), 'w')
-    fo.write('$constrain\n')
-    fo.write(' force constant=0.5\n')
-    fo.write(f' atoms: {",".join(map(str, match))}\n')
-    fo.write('$end\n')
-    fo.close()
-
-    return
-
-
-def run_contrained_xTB(args): #(molecule, core, name, chrg=0, spin=0, method=' 1', solvent='', precalc_path=None):
-
-    global XTBHOME
-    global XTBPATH
-    global LD_LIBRARY_PATH
-
-    global OMP_NUM_THREADS
-    global MKL_NUM_THREADS
-
-    # Set env parameters for xTB
-    os.environ['XTBHOME'] = XTBHOME
-    os.environ['XTBPATH'] = XTBPATH
-    os.environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-    os.environ["OMP_NUM_THREADS"] = OMP_NUM_THREADS
-    os.environ['MKL_NUM_THREADS'] = MKL_NUM_THREADS
-
-    # Unpack inputs
-    molecule, core, name, chrg, spin, method, solvent, precalc_path = args
-
-    # Create calculation directory
-    mol_calc_path = os.path.join(os.getcwd(), 'calc', name.split('_')[0], name.split('_')[1], 'contrained_'+name.split('_')[-1], name)
-    os.makedirs(mol_calc_path, exist_ok=True)
-    
-    # Create files in calculation directory
-    start_structure_xyz = os.path.join(mol_calc_path, f'{name}.xyz')
-    final_structure_sdf = os.path.join(mol_calc_path, f'{name}_opt.sdf')
-    if precalc_path:
-        shutil.copy(os.path.join(precalc_path, 'xtbopt.xyz'), start_structure_xyz) #copy xyz file of molecule from precalc_path
-        shutil.copy(os.path.join(precalc_path, 'xcontrol'), os.path.join(mol_calc_path, 'xcontrol')) #copy xcontrol from precalc_path
-    else:
-        Chem.rdmolfiles.MolToXYZFile(molecule, start_structure_xyz) #make xyz file of molecule (without isotope information)
-        make_xcontrol_contrain_file(molecule, core, mol_calc_path) #make xcontrol file
-
-    # Run xTB calc
-    cmd = f'{XTBHOME}/bin/xtb --gfn{method} {start_structure_xyz} --opt --chrg {chrg} --uhf {spin} --input ./xcontrol {solvent}'
-    proc = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=mol_calc_path)
-    output = proc.communicate()[0]
-
-    # Save calc output
-    with open(f'{mol_calc_path}/{name}.xtbout', 'w') as f:
-        f.write(output)
-
-    # Convert .xyz to .sdf using and check input/output connectivity
-    if os.path.isfile(f'{mol_calc_path}/xtbopt.xyz'):
-        molfmt.convert_xyz_to_sdf(f'{mol_calc_path}/xtbopt.xyz', final_structure_sdf) #convert optimized structure
-    else:
-        print(f'WARNING! xtbopt.xyz was not created => calc failed for {name}')
-        energy = 60000.0
-        return energy, mol_calc_path
-    
-    same_structure = molfmt.compare_sdf_structure(Chem.MolToMolBlock(molecule), final_structure_sdf, molblockStart=True)
-    if not same_structure:
-        print(f'WARNING! Input/output mismatch for {name}')
-        energy = 60000.0
-        return energy, mol_calc_path
-
-    # Search for the molecular energy
-    for i, line in enumerate(output.split('\n')):
-        if 'TOTAL ENERGY' in line:
-            energy = line.split()[3]
-
-    try: #check if the molecular energy was found.
-        energy = float(energy) * Hartree * mol/kJ #convert energy from Hartree to kJ/mol
-    except Exception as e:
-        print(e, name)
         energy = 60000.0
 
     return energy, mol_calc_path
