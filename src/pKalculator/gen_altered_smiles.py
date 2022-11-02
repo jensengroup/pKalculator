@@ -287,9 +287,9 @@ def change_mol_v6(name, smiles, rxn, reduce_smiles=False, show_mol=False):
     smartsref, delta_charge = define_conditions(rxn=rxn)
 
     if delta_charge != 0:
-        new_charge = "_" + str(charge+delta_charge)
+        new_charge = "#" + str(charge+delta_charge)
     else:
-        new_charge = "-rad_" + str(charge)
+        new_charge = "-rad#" + str(charge)
 
     lst_new_smiles, lst_atommapnum = transform_mol_v4(smartsref, delta_charge, ref_mol_isomer, show_mol=False)
     count_new_smiles = len(lst_new_smiles)
