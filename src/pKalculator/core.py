@@ -46,7 +46,7 @@ mem_gb = 40 # total memory usage per task.
 
 
 
-def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', solvent='', conf_cutoff=50, precalc_path=None):
+def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', solvent='', conf_cutoff=10, precalc_path=None):
     
     global num_cpu_single
     
@@ -68,7 +68,7 @@ def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', s
         conf_energies.append(conf_energy)
         conf_paths.append(path_opt)
 
-    # Find the conformers below cutoff #kJ/mol (12.6 kJ/mol = 3 kcal/mol)
+    # Find the conformers below cutoff #kcal/mol (3 kcal/mol = 12.6 kJ/mol)
     rel_conf_energies = np.array(conf_energies) - np.min(conf_energies) #covert to relative energies
     below_cutoff = (rel_conf_energies <= conf_cutoff).sum() #get number of conf below cutoff
 
@@ -88,14 +88,14 @@ def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', s
 
 def calculateEnergy(args):
     """ Embed the post-insertion complex and calculate the ground-state free energy 
-    return: energy [kJ/mol]
+    return: energy [kcal/mol]
     """
     
     global num_cpu_single
 
     rdkit_mol, name = args
     method=' 2'  # <--- change the method for accurate calculations ('ff', ' 0', ' 1', ' 2')
-    solvent = '--alpb Phenol' # <--- change the solvent ('--gbsa solvent_name', '--alpb solvent_name', or '')
+    solvent = '' # <--- change the solvent ('--gbsa solvent_name', '--alpb solvent_name', or '')
     chrg = Chem.GetFormalCharge(rdkit_mol) # checking and adding formal charge to "chrg"
     # OBS! Spin is hardcoded to zero!
 
