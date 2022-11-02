@@ -1,3 +1,4 @@
+from core import *
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import copy
@@ -310,10 +311,10 @@ def change_mol_v6(name, smiles, rxn, reduce_smiles=False, show_mol=False):
         display(Draw.MolsToGridImage([Chem.MolFromSmiles(smi) for smi in lst_new_smiles], legends=[f'{a} {str(b)}' for a,b in legend], subImgSize=(200,200)))
         # draw_mols_from_smiles(lst_new_smiles)
 
-    print(f'atom list: {lst_atommapnum}')
-    print(f'Generated {count_new_smiles} new smiles')
-    if reduce_smiles:
-        print(f'After reduction, {count_new_smiles_reduced} new smiles')
+    # print(f'atom list: {lst_atommapnum}')
+    # print(f'Generated {count_new_smiles} new smiles')
+    # if reduce_smiles:
+    #     print(f'After reduction, {count_new_smiles_reduced} new smiles')
 
     lst_new_name = [f"{name}{new_charge}={str(a)}" for a in lst_atommapnum]
 
@@ -330,14 +331,26 @@ if __name__ == "__main__":
     start = time.perf_counter()
 
     input_smiles = 'O1C=CC=C1'
+    input_mol = Chem.MolFromSmiles(input_smiles)
     name = 'furan' 
     # input_mol = Chem.MolFromSmiles('c1c(c2cc(sc2)C)n[nH]c1')
     # input_mol = Chem.MolFromSmiles('c1cc(oc1)CCCN1C(=O)C[C@@H](C1=O)O')
     # input_mol = Chem.MolFromSmiles('c1ccccc1O')
 
-    print(change_mol_v6(name=name, smiles=input_smiles, rxn='rm_proton', reduce_smiles=True, show_mol=False))
 
-    # print(generate_protonated_smiles(input_mol, name='mol'))
-    
+    best_conf_energy_neutral, best_conf_mol_neutral = calculateEnergy((input_mol, name))
+    print(best_conf_energy)
+
+
+    lst_name_deprot, _, lst_smiles_deprot, _, _ = change_mol_v6(name=name, smiles=input_smiles, rxn='rm_proton', reduce_smiles=True, show_mol=False)
+    lst_mol_deprot = [Chem.MolFromSmiles(smi) for smi in lst_smiles_deprot]
+
+    for name, mol in list(zip(lst_name_deprot, lst_mol_deprot)):
+        best_conf_energy_deprot, best_conf_mol_deprot = calculateEnergy((input_mol, name))
+        print(name)
+        print(f'E = {best_conf_energy_deprot}')
+        rel_E = best_conf_energy_deprot - best_conf_energy_neutral
+        print(f'd_G = {rel_E:.2f} kJ/mol')
+
     finish = time.perf_counter()
     print(f'Finished in {round(finish-start, 2)} second(s)')
