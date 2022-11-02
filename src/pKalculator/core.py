@@ -54,9 +54,9 @@ def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', s
     confsearch_args = []
     for i in range(len(conf_names)):
         if precalc_path:
-            confsearch_args.append((conf_names[i]+'_full_opt.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, precalc_path[i]))
+            confsearch_args.append((conf_names[i]+'_gfn'+method.replace(' ', '')+'.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, precalc_path[i]))
         else:
-            confsearch_args.append((conf_names[i]+'_full_opt.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, None))
+            confsearch_args.append((conf_names[i]+'_gfn'+method.replace(' ', '')+'.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, None))
 
     with ThreadPoolExecutor(max_workers=num_cpu_single) as executor:
         results = executor.map(run_xTB.run_xTB, confsearch_args)
@@ -77,7 +77,7 @@ def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', s
 
     conf_names, conf_complex_mols, conf_paths, conf_energies, rel_conf_energies = zip(*conf_tuble) #unzip tuble
     conf_names, conf_complex_mols, conf_paths, conf_energies = list(conf_names), list(conf_complex_mols), list(conf_paths), list(conf_energies) #tubles to lists
-    mol_files = [os.path.join(item, item.split('/')[-1] + '_opt.sdf') for item in conf_paths] #list of paths to optimized structures in .sdf format
+    mol_files = [os.path.join(conf_path, conf_name+'_gfn'+method.replace(' ', '') + '_opt.sdf') for conf_path, conf_name in zip(conf_paths,conf_names)] #list of paths to optimized structures in .sdf format
 
     # Find only unique conformers
     conf_names, conf_complex_mols, conf_paths, conf_energies = zip(*molfmt.find_unique_confs(list(zip(conf_names, conf_complex_mols, conf_paths, conf_energies)), mol_files, threshold=0.5)) #find unique conformers
@@ -146,11 +146,14 @@ def calculateEnergy(args):
 
         conf_path = os.path.join(os.getcwd().replace('/src/pKalculator', ''), 'calc', conf_name.split('_')[0], conf_name.split('_')[1])
         
-        if os.path.isfile(os.path.join(conf_path, conf_name+'_full_opt.xyz')):
-            os.remove(os.path.join(conf_path, conf_name+'_full_opt.xyz'))
+        if os.path.isfile(os.path.join(conf_path, conf_name+'_gfnff.xyz')):
+            os.remove(os.path.join(conf_path, conf_name+'_gfnff.xyz'))
+        
+        if os.path.isfile(os.path.join(conf_path, conf_name+'_gfn'+ method.replace(' ', '') + '.xyz')):
+            os.remove(os.path.join(conf_path, conf_name+'_gfn'+ method.replace(' ', '') + '.xyz'))
         
         # Remove GFNFF-xTB folder
-        folder_path = os.path.join(conf_path, 'contrained_gfnff', conf_name + '_contrained_gfnff')
+        folder_path = os.path.join(conf_path, 'gfnff')
         if os.path.exists(folder_path):
             for file_remove in os.listdir(folder_path):
                 if os.path.isfile(f'{folder_path}/{file_remove}'):
@@ -161,37 +164,14 @@ def calculateEnergy(args):
             else:
                 print("Folder is not empty")
     
-        # Remove GFN?-xTB folder
-        folder_path = os.path.join(conf_path, 'contrained_gfn' + method.replace(' ', ''), conf_name + '_contrained_gfn' + method.replace(' ', ''))
+        # Clean GFN?-xTB folder
+        folder_path = os.path.join(conf_path, 'gfn' + method.replace(' ', ''))
         if os.path.exists(folder_path):
             for file_remove in os.listdir(folder_path):
-                if os.path.isfile(f'{folder_path}/{file_remove}'):
+                if file_remove.split('.')[-1] in ['sdf', 'xtbout', 'xyz']:
+                    continue
+                elif os.path.isfile(f'{folder_path}/{file_remove}'):
                     os.remove(f'{folder_path}/{file_remove}')
-            # checking whether the folder is empty or not
-            if len(os.listdir(folder_path)) == 0:
-                os.rmdir(folder_path)
-            else:
-                print("Folder is not empty")
-
-        # Clean full opt folder
-        folder_path = os.path.join(conf_path, 'full_opt', conf_name + '_full_opt')
-        file_remove_list = ['charges', 'coordprot.0', 'lmocent.coord', 'orca_calc_atom46.densities',
-                        'orca_calc_atom46.out', 'orca_calc_atom46_property.txt', 'orca_calc_atom53.densities',
-                        'orca_calc_atom53.out', 'orca_calc_atom53_property.txt', 'orca_calc.cpcm',
-                        'orca_calc.densities', 'orca_calc.gbw', 'wbo', 'xtblmoinfo', 'xtbopt.log',
-                        '.xtboptok', 'xtbrestart', 'xtbscreen.xyz']
-        if os.path.exists(folder_path):
-            for file_remove in file_remove_list:
-                if os.path.isfile(f'{folder_path}/{file_remove}'):
-                    os.remove(f'{folder_path}/{file_remove}')
-    
-    folder_path = os.path.join(conf_path, 'contrained_gfnff')
-    if os.path.exists(folder_path):
-        os.rmdir(folder_path)
-    
-    folder_path = os.path.join(conf_path, 'contrained_gfn'+method.replace(' ', '')) 
-    if os.path.exists(folder_path):
-        os.rmdir(folder_path)
     ### END - CLEAN UP ###
 
     return best_conf_energy, best_conf_mol
