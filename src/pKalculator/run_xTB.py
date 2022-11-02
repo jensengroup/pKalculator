@@ -62,11 +62,12 @@ def run_xTB(args): #(xyzfile, molecule, chrg=0, spin=0, method=' 1', solvent='',
 
     # Create calculation directory
     name = xyzfile.split('.')[0]
-    mol_calc_path = os.path.join(os.getcwd(), 'calc', name.split('_')[0], name.split('_')[1], 'full_opt', name)
+    mol_calc_path = os.path.join(path, 'calc', name.split('_')[0], name.split('_')[1], 'full_opt', name)
+    mol_calc_path = os.path.join(path, 'calc', name.split('_')[0], name.split('_')[1], 'contrained_'+name.split('_')[-1], name)
     os.makedirs(mol_calc_path, exist_ok=True)
     
     # Create files in calculation directory
-    start_structure_xyz = os.path.join(os.getcwd(), 'calc', name.split('_')[0], name.split('_')[1], xyzfile)
+    start_structure_xyz = os.path.join(path, 'calc', name.split('_')[0], name.split('_')[1], xyzfile)
     start_structure_sdf = os.path.join(mol_calc_path, name+'.sdf')
     final_structure_sdf = os.path.join(mol_calc_path, name+'_opt.sdf')
     if precalc_path:
