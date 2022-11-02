@@ -76,6 +76,8 @@ def get_bonds(sdf_file):
             bonds = int(line[3:6])
         if 'Pd' in words: #find atom index of Pd
             transistion_metal_idx = i - 3
+        else:
+            transistion_metal_idx = -1
         if i > atoms+3 and i <= atoms+bonds+3:
             atom_1 = int(line[0:3])
             atom_2 = int(line[3:6])
@@ -110,6 +112,8 @@ def get_bonds_molblock(molblock):
             bonds = int(line[3:6])
         if 'Pd' in words: #find atom index of Pd
             transistion_metal_idx = i - 3
+        else:
+            transistion_metal_idx = -1
         if i > atoms+3 and i <= atoms+bonds+3:
             atom_1 = int(line[0:3])
             atom_2 = int(line[3:6])
