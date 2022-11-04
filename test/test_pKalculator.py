@@ -1,6 +1,9 @@
-
-from calc_pKa import calc_E_rel
-from calc_pKa import calc_pKa
+import os 
+import sys
+os.chdir('../')
+sys.path.append('src/pKalculator')
+from core import calc_E_rel
+from core import calc_pKa
 import time
 from rdkit import Chem
 import pandas as pd
@@ -8,7 +11,7 @@ import pandas as pd
 
 start = time.perf_counter()
 
-df = pd.read_csv('compounds_paper.smiles', sep=' ')#.set_index('name')
+df = pd.read_csv('test/compounds_paper.smiles', sep=' ')#.set_index('name')
 
 print(df)
 
