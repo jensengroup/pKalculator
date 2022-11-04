@@ -1,188 +1,349 @@
-# MIT License
-#
-# Copyright (c) 2022 Nicolai Ree
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
-import os
-import copy
-import numpy as np
-from operator import itemgetter
-from concurrent.futures import ThreadPoolExecutor
-
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from rdkit.Chem import MolStandardize
-from rdkit import RDLogger
-lg = RDLogger.logger()
-lg.setLevel(RDLogger.CRITICAL)
+import copy
+import numpy as np
+import pandas as pd
 
-import molecule_formats as molfmt
-import run_xTB as run_xTB
-
-# CPU and memory usage
-# -- Note, that ORCA is set to use 8 cpu cores and 2 conformers are running in parallel
-#    resulting in a total of 16 cpu cores per task. Memory per ORCA calculation is set to (mem_gb/2)*1000 MB.
-num_cpu_parallel = 2 # number of parallel jobs.
-num_cpu_single = 8 # number of cpus per job.
-mem_gb = 40 # total memory usage per task.
+from rdkit.Chem import Draw
+from rdkit.Chem import Descriptors
+from rdkit.Chem import rdDepictor
+from rdkit.Chem import rdFMCS
+from rdkit.Chem import rdmolops
+from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
+from rdkit import rdBase
 
 
+rdDepictor.SetPreferCoordGen(False)
+
+from rdkit.Chem.Draw import MolsToGridImage
+from rdkit.Chem.Draw import IPythonConsole
+from IPython.display import display
+IPythonConsole.ipython_useSVG = True  # Change output to SVG
+IPythonConsole.drawOptions.addAtomIndices = True
+IPythonConsole.drawOptions.minFontSize = 18
+IPythonConsole.drawOptions.prepareMolsBeforeDrawing = True
+rdBase.rdkitVersion
+
+# ---------------------------------------------------------------------------------------------
+
+def read_smiles_file(file):
+    smiles_dict = {}
+    with open(file, 'r') as f:
+        for line in f:
+            if line.startswith('#') or line.startswith(' '):
+                continue
+            name, smiles = line.rstrip().split()
+            smiles_dict[name] = smiles
+    return smiles_dict
+
+# ---------------------------------------------------------------------------------------------
+
+def smiles_file_to_df(filename):
+    df = pd.read_csv(filename, sep=' ')
+    return df
 
 
-def confsearch_xTB(conf_complex_mols, conf_names, chrg=0, spin=0, method='ff', solvent='', conf_cutoff=10, precalc_path=None):
+# ---------------------------------------------------------------------------------------------
+
+#https://github.com/CalebBell/thermo/issues/22
+def draw_3d(mol, width=300, height=300, style='stick', Hs=True): # pragma: no cover
+        '''Interface for drawing an interactive 3D view of the molecule.
+        Requires an HTML5 browser, and the libraries RDKit, pymol3D, and
+        IPython. An exception is raised if all three of these libraries are
+        not installed.
+        Parameters
+        ----------
+        width : int
+            Number of pixels wide for the view
+        height : int
+            Number of pixels tall for the view
+        style : str
+            One of 'stick', 'line', 'cross', or 'sphere'
+        Hs : bool
+            Whether or not to show hydrogen
+        Examples
+        --------
+        >>> Chemical('cubane').draw_3d()
+        <IPython.core.display.HTML object>
+        '''
+        try:
+            import py3Dmol
+            from IPython.display import display
+            #AllChem.EmbedMultipleConfs(mol)
+            mb = Chem.MolToMolBlock(mol)
+            p = py3Dmol.view(width=width,height=height)
+            p.addModel(mb,'sdf')
+            p.setStyle({style:{}})
+            p.addPropertyLabels("index","","")
+            p.zoomTo()
+            display(p.show())
+        except:
+            return 'py3Dmol, RDKit, and IPython are required for this feature.'
+
+# ---------------------------------------------------------------------------------------------
+
+def draw_mols_from_smiles(smiles_list):
+    display(Draw.MolsToGridImage([Chem.MolFromSmiles(smi) for smi in smiles_list]))
+    for smi in smiles_list:
+        m1 = Chem.MolFromSmiles(smi)
+        Chem.AssignStereochemistry(m1)
+        display(m1)
+        print("mapped smiles = ", smi)
+        print("canonical_smiles = ", remove_label_chirality(smi))
+        m1 = Chem.AddHs(m1)
+        AllChem.EmbedMolecule(m1, randomSeed=0)
+        draw_3d(m1)
+    return
+
+# ---------------------------------------------------------------------------------------------
+# MAPPING
+# ---------------------------------------------------------------------------------------------
+
+def remove_label_chirality(smi):
+    mol = Chem.MolFromSmiles(smi, sanitize=False)
     
-    global num_cpu_single
+    # Remove atom mapping
+    [atom.SetAtomMapNum(0) for atom in mol.GetAtoms()]
     
-    # Run a constrained xTB optimizations  
-    confsearch_args = []
-    for i in range(len(conf_names)):
-        if precalc_path:
-            confsearch_args.append((conf_names[i]+'_gfn'+method.replace(' ', '')+'.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, precalc_path[i]))
-        else:
-            confsearch_args.append((conf_names[i]+'_gfn'+method.replace(' ', '')+'.xyz', conf_complex_mols[i], chrg, spin, method, solvent, True, None))
+    # Reassign stereochemistry 
+    rdmolops.AssignStereochemistry(mol, cleanIt=True, flagPossibleStereoCenters=True, force=True)
+    
+    return Chem.MolToSmiles(mol)
 
-    with ThreadPoolExecutor(max_workers=num_cpu_single) as executor:
-        results = executor.map(run_xTB.run_xTB, confsearch_args)
+# ---------------------------------------------------------------------------------------------
 
-    conf_energies = []
-    conf_paths = []
-    for result in results:
-        conf_energy, path_opt = result
-        conf_energies.append(conf_energy)
-        conf_paths.append(path_opt)
+def remove_label_chirality_v2(smi):
+    mol = Chem.MolFromSmiles(smi, sanitize=True)
+    
+    # Remove atom mapping
+    [atom.SetAtomMapNum(0) for atom in mol.GetAtoms()]
+    
+    # Reassign stereochemistry 
+    rdmolops.AssignStereochemistry(mol, cleanIt=True, flagPossibleStereoCenters=True, force=True)
+    
+    return Chem.MolToSmiles(mol)
 
-    # Find the conformers below cutoff #kcal/mol (3 kcal/mol = 12.6 kJ/mol)
-    rel_conf_energies = np.array(conf_energies) - np.min(conf_energies) #covert to relative energies
-    below_cutoff = (rel_conf_energies <= conf_cutoff).sum() #get number of conf below cutoff
+# ---------------------------------------------------------------------------------------------
 
-    conf_tuble = list(zip(conf_names, conf_complex_mols, conf_paths, conf_energies, rel_conf_energies)) #make a tuble
-    conf_tuble = sorted(conf_tuble, key=itemgetter(4))[:below_cutoff] #get only the best conf below cutoff
+def reorder_atoms_to_map(mol):
 
-    conf_names, conf_complex_mols, conf_paths, conf_energies, rel_conf_energies = zip(*conf_tuble) #unzip tuble
-    conf_names, conf_complex_mols, conf_paths, conf_energies = list(conf_names), list(conf_complex_mols), list(conf_paths), list(conf_energies) #tubles to lists
-    mol_files = [os.path.join(conf_path, conf_name+'_gfn'+method.replace(' ', '') + '_opt.sdf') for conf_path, conf_name in zip(conf_paths,conf_names)] #list of paths to optimized structures in .sdf format
-
-    # Find only unique conformers
-    conf_names, conf_complex_mols, conf_paths, conf_energies = zip(*molfmt.find_unique_confs(list(zip(conf_names, conf_complex_mols, conf_paths, conf_energies)), mol_files, threshold=0.5)) #find unique conformers
-    conf_names, conf_complex_mols, conf_paths, conf_energies = list(conf_names), list(conf_complex_mols), list(conf_paths), list(conf_energies) #tubles to lists
-
-    return conf_names, conf_complex_mols, conf_paths, conf_energies
-
-
-def calculateEnergy(args):
-    """ Embed the post-insertion complex and calculate the ground-state free energy 
-    return: energy [kcal/mol]
     """
+    Reorders the atoms in a mol objective to match that of the mapping
+    """
+
+    atom_map_order = np.zeros(mol.GetNumAtoms()).astype(int)
+    for atom in mol.GetAtoms():
+        map_number = atom.GetAtomMapNum()-1
+        atom_map_order[map_number] = atom.GetIdx()
+    mol = Chem.RenumberAtoms(mol, atom_map_order.tolist())
+    return mol
+
+# ---------------------------------------------------------------------------------------------
+
+def get_mapped_smiles(mol):
+    """
+    label all potential stereocenters and choose one stereosiomer
+    """
+    for i, atom in enumerate(mol.GetAtoms()):
+        a = mol.GetAtomWithIdx(i)
+        a.SetAtomMapNum(i+1)
+    rdmolops.AssignStereochemistry(mol, cleanIt=True, flagPossibleStereoCenters=True, force=True)
+
+    mol_isomer = next(EnumerateStereoisomers(mol))
+    rdmolops.AssignStereochemistry(mol_isomer, force=True)
+    mol_isomer_smiles = Chem.MolToSmiles(mol_isomer)
+
+    return mol_isomer, mol_isomer_smiles
+
+# ---------------------------------------------------------------------------------------------
+
+rm_proton = ( ('[CX4;H3]','[CH2-]'),('[CX4;H2]','[CH-]'),('[CX4;H1]','[C-]'),('[CX3;H2]','[CH-]'),
+              ('[CX3;H1]','[C-]'), ('[CX2;H1]','[C-]'))
+
+rm_hydride =( ('[CX4;H3]','[CH2+]'),('[CX4;H2]','[CH+]'),('[CX4;H1]','[C+]'),('[CX3;H2]','[CH+]'),
+              ('[CX3;H1]','[C+]'), ('[CX2;H1]','[C+]'))
+
+rm_hydrogen = ( ('[CX4;H3]','[CH2]'),('[CX4;H2]','[CH]'),('[CX4;H1]','[C]'),('[CX3;H2]','[CH]'),
+              ('[CX3;H1]','[C]'), ('[CX2;H1]','[C]'))
+
+add_proton_hydrogen = ['[C;H1:1]=[C,N;H1:2]>>[CH2:1][*H+:2]', '[C;H1:1]=[C,N;H0:2]>>[CH2:1][*+;H0:2]']
+
+# ---------------------------------------------------------------------------------------------
+
+def define_conditions(rxn=None):
+
+     if rxn == "rm_proton":
+          smartsref = rm_proton
+          delta_charge = -1
+     if rxn == "rm_hydride":
+          smartsref = rm_hydride
+          delta_charge = 1
+     if rxn == "rm_hydrogen":
+          smartsref = rm_hydrogen
+          delta_charge = 0
+     if rxn == "add_proton":
+          smartsref = add_proton_hydrogen
+          delta_charge = 1
+     if rxn == "add_hydrogen":
+          smartsref = add_proton_hydrogen
+          delta_charge = 0
+     if rxn == "add_electron":
+          delta_charge = -1
+     if rxn == "rm_electron":
+          delta_charge = +1
+          
+     return smartsref, delta_charge
+
+
+# ---------------------------------------------------------------------------------------------
+#TRANSFORMATIONS
+# ---------------------------------------------------------------------------------------------
+
+
+def check_chiral(m,ion):
+    chiral_atoms_mol = Chem.FindMolChiralCenters(m)
     
-    global num_cpu_single
+    number_of_chiral_atoms_mol = len(chiral_atoms_mol)
+    if number_of_chiral_atoms_mol == 0:
+        return ion
 
-    rdkit_mol, name = args
-    method=' 2'  # <--- change the method for accurate calculations ('ff', ' 0', ' 1', ' 2')
-    solvent = '' # <--- change the solvent ('--gbsa solvent_name', '--alpb solvent_name', or '')
-    chrg = Chem.GetFormalCharge(rdkit_mol) # checking and adding formal charge to "chrg"
-    # OBS! Spin is hardcoded to zero!
+    #ion = Chem.MolFromSmiles(ion_smiles)
+    #Chem.FindMolChiralCenters(ion, useLegacyImplementation=False, includeUnassigned=True)
+    chiral_atoms_ion = Chem.FindMolChiralCenters(ion)
 
-    # RDkit conf generator
-    rdkit_mol = Chem.AddHs(rdkit_mol)
-    rot_bond = Chem.rdMolDescriptors.CalcNumRotatableBonds(rdkit_mol)
-    n_conformers = min(1 + 3 * rot_bond, 20)
-    # p = AllChem.ETKDGv3()
-    # p.randomSeed = 90
-    # p.useSmallRingTorsions=True
-    # p.ETversion=2
-    # p.useExpTorsionAnglePrefs=True
-    # p.useBasicKnowledge=True
-    # AllChem.EmbedMultipleConfs(rdkit_mol, numConfs=n_conformers, params=p)
+    for chiral_atom_mol,chiral_atom_ion in zip(chiral_atoms_mol,chiral_atoms_ion):
+        if chiral_atom_mol != chiral_atom_ion:
+            ion.GetAtomWithIdx(chiral_atom_ion[0]).InvertChirality()
+
+
+    return ion
+
+# ---------------------------------------------------------------------------------------------
+
+def transform_mol_v4(smartsref, delta_charge, ref_mol, show_mol=False):
+    lst_atoms = []
+    lst_new_mols = []
+    new_smiles = []
+    lst_atommapnum = []
+
+    ref_mol_kekulized = copy.deepcopy(ref_mol)
+    Chem.Kekulize(ref_mol_kekulized,clearAromaticFlags=True)
+
+    for (smarts, smiles) in smartsref:
+        patt1 = Chem.MolFromSmarts(smarts)
+        patt2 = Chem.MolFromSmiles(smiles)
+        atoms = ref_mol_kekulized.GetSubstructMatches(patt1)
+      
+        if len(atoms) != 0:
+            [lst_atoms.append(element) for tupl in atoms for element in tupl]
+            new_mol = Chem.rdmolops.ReplaceSubstructs(ref_mol_kekulized, patt1, patt2)
+            lst_new_mols += new_mol
+
+    lst_new_mol_chiral = [check_chiral(ref_mol_kekulized,s) for s in lst_new_mols]
+    
+    for a_index, mol in zip(lst_atoms, lst_new_mol_chiral):
+        a = mol.GetAtomWithIdx(mol.GetNumAtoms()-1)
+        a.SetAtomMapNum(a_index+1)
+        lst_atommapnum.append(a.GetAtomMapNum())
+        s = Chem.MolToSmiles(mol,isomericSmiles=True, canonical=False, kekuleSmiles=True)
+        new_smiles.append(s)
+
+    # for idx, smi in enumerate(new_smiles):
+    #     m1 = Chem.MolFromSmiles(smi)
+    #     Chem.AssignStereochemistry(m1)
+    #     lst_atommapnum += [atom.GetAtomMapNum() for atom in m1.GetAtoms() if atom.GetFormalCharge() != 0]
+
+    return new_smiles, lst_atommapnum
+
+# ---------------------------------------------------------------------------------------------
+
+
+def find_and_reduce_smiles_v3(smiles_list=None, details=False):
+    lst_reduced_atommapnum = []
+    lst_canon_smiles = [remove_label_chirality_v2(smi) for smi in smiles_list]
+    unique_smis, uniqueIdx = np.unique(lst_canon_smiles, return_index=True)
+    lst_reduced_smiles = [smiles_list[idx] for idx in uniqueIdx.tolist()]
+
+    for smi in lst_reduced_smiles:
+        m1 = Chem.MolFromSmiles(smi)
+        Chem.AssignStereochemistry(m1)
+        lst_reduced_atommapnum += [atom.GetAtomMapNum() for atom in m1.GetAtoms() if atom.GetFormalCharge() != 0 or atom.GetNumRadicalElectrons() != 0]
+
+    if details:
+        print('--'*80)
+        print(f'canonical smiles: {lst_canon_smiles}')
+        print('Reduced list of smiles')
+        print(lst_reduced_smiles)
+        print('--'*80)
+        display(Draw.MolsToGridImage([Chem.MolFromSmiles(smi) for smi in lst_reduced_smiles], subImgSize=(200,200)))
+        print('--'*80)
+        draw_mols_from_smiles(lst_reduced_smiles)
+    
+    return lst_reduced_smiles, lst_reduced_atommapnum
+
+# ---------------------------------------------------------------------------------------------
+
+def change_mol_v6(name, smiles, rxn, reduce_smiles=False, show_mol=False):
+    ref_mol = Chem.MolFromSmiles(smiles)
+    ref_mol_isomer, ref_mol_isomer_smiles = get_mapped_smiles(ref_mol)
+    ref_mol_isomer_kekulized = copy.deepcopy(ref_mol_isomer)
+    Chem.Kekulize(ref_mol_isomer_kekulized,clearAromaticFlags=True)
+    charge = Chem.GetFormalCharge(ref_mol_isomer_kekulized)
+
+
+    smartsref, delta_charge = define_conditions(rxn=rxn)
+
+    if delta_charge != 0:
+        new_charge = "#" + str(charge+delta_charge)
+    else:
+        new_charge = "-rad#" + str(charge)
+
+    lst_new_smiles, lst_atommapnum = transform_mol_v4(smartsref, delta_charge, ref_mol_isomer, show_mol=False)
+    count_new_smiles = len(lst_new_smiles)
+
+    if reduce_smiles:
+        lst_new_smiles, lst_atommapnum = find_and_reduce_smiles_v3(lst_new_smiles, details=False)
+        count_new_smiles_reduced = len(lst_new_smiles)
+
+    lst_new_smiles_nomap = [remove_label_chirality(smi) for smi in lst_new_smiles]
+    lst_canon_smiles = [remove_label_chirality_v2(smi) for smi in lst_new_smiles]
+
+    legend = list(zip(lst_canon_smiles, lst_atommapnum))
         
-    AllChem.EmbedMultipleConfs(rdkit_mol, numConfs=n_conformers,
-            useExpTorsionAnglePrefs=True,
-            useBasicKnowledge=True, ETversion=2, randomSeed=90)
+    if show_mol:
+        print('--'*80)
+        print(f'{name} reference molecule')
+        print(ref_mol_isomer_smiles)
+        display(ref_mol_isomer)
+        display(Draw.MolsToGridImage([Chem.MolFromSmiles(smi) for smi in lst_new_smiles], legends=[f'{a} {str(b)}' for a,b in legend], subImgSize=(200,200)))
+        # draw_mols_from_smiles(lst_new_smiles)
 
-    # Unpack confomers and assign conformer names
-    conf_mols = [Chem.Mol(rdkit_mol, False, i) for i in range(rdkit_mol.GetNumConformers())]
-    conf_names = [name + f'_conf{str(i+1).zfill(2)}' for i in range(rdkit_mol.GetNumConformers())] #change zfill(2) if more than 99 conformers
-    conf_names_copy = copy.deepcopy(conf_names)
+    # print(f'atom list: {lst_atommapnum}')
+    # print(f'Generated {count_new_smiles} new smiles')
+    # if reduce_smiles:
+    #     print(f'After reduction, {count_new_smiles_reduced} new smiles')
 
-    # Run a GFN-FF optimization
-    conf_names, conf_mols, conf_paths, conf_energies = confsearch_xTB(conf_mols, conf_names, chrg=chrg, spin=0, method='ff', solvent=solvent, conf_cutoff=10, precalc_path=None)
-    
-    # Run a GFN?-xTB optimization
-    conf_names, conf_mols, conf_paths, conf_energies = confsearch_xTB(conf_mols, conf_names, chrg=chrg, spin=0, method=method, solvent=solvent, conf_cutoff=10, precalc_path=conf_paths)
-    
-    # Run Orca single point calculations
-    final_conf_energies = []
-    final_conf_mols = []
-    for conf_name, conf_mol, conf_path, conf_energy in zip(conf_names, conf_mols, conf_paths, conf_energies):
-        # if conf_energy != 60000.0: # do single point calculations on all unique conformers
-        #     conf_energy = run_orca.run_orca('xtbopt.xyz', chrg, os.path.join("/".join(conf_path.split("/")[:-2]), 'full_opt', conf_name+'_full_opt'), ncores=num_cpu_single, mem=(int(mem_gb)/2)*1000)
-        final_conf_energies.append(conf_energy)
-        final_conf_mols.append(conf_mol)
-    
-    # Get only the lowest energy conformer
-    minE_index = np.argmin(final_conf_energies)
-    best_conf_mol = final_conf_mols[minE_index]
-    best_conf_energy = final_conf_energies[minE_index] # uncomment when doing single point calculations on all unique conformers
-    # best_conf_energy = run_orca.run_orca('xtbopt.xyz', chrg, os.path.join(os.getcwd(), 'calc', conf_names[minE_index]+'_full_opt'), ncores=num_cpu_single, mem=(int(mem_gb)/2)*1000) # comment when doing single point calculations on all unique conformers, otherwise this runs a Orca single point calculation on the lowest xTB energy conformer
+    lst_new_name = [f"{name}{new_charge}={str(a)}" for a in lst_atommapnum]
 
-    ### START - CLEAN UP ###
-    for conf_name in conf_names_copy:
+    return lst_new_name, lst_new_smiles, lst_new_smiles_nomap, lst_canon_smiles, lst_atommapnum
 
-        conf_path = os.path.join(os.getcwd().replace('/src/pKalculator', ''), 'calc', conf_name.split('_')[0], conf_name.split('_')[1])
-        
-        if os.path.isfile(os.path.join(conf_path, conf_name+'_gfnff.xyz')):
-            os.remove(os.path.join(conf_path, conf_name+'_gfnff.xyz'))
-        
-        if os.path.isfile(os.path.join(conf_path, conf_name+'_gfn'+ method.replace(' ', '') + '.xyz')):
-            os.remove(os.path.join(conf_path, conf_name+'_gfn'+ method.replace(' ', '') + '.xyz'))
-        
-        # Remove GFNFF-xTB folder
-        folder_path = os.path.join(conf_path, 'gfnff')
-        if os.path.exists(folder_path):
-            for file_remove in os.listdir(folder_path):
-                if os.path.isfile(f'{folder_path}/{file_remove}'):
-                    os.remove(f'{folder_path}/{file_remove}')
-            # checking whether the folder is empty or not
-            if len(os.listdir(folder_path)) == 0:
-                os.rmdir(folder_path)
-            else:
-                print("Folder is not empty")
-    
-        # Clean GFN?-xTB folder
-        folder_path = os.path.join(conf_path, 'gfn' + method.replace(' ', ''))
-        if os.path.exists(folder_path):
-            for file_remove in os.listdir(folder_path):
-                if file_remove.split('.')[-1] in ['sdf', 'xtbout', 'xyz']:
-                    continue
-                elif os.path.isfile(f'{folder_path}/{file_remove}'):
-                    os.remove(f'{folder_path}/{file_remove}')
-    ### END - CLEAN UP ###
+# ---------------------------------------------------------------------------------------------
 
-    return best_conf_energy, best_conf_mol
-
+# ---------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
     
-    input_smiles = 'c1c(c2cc(sc2)C)n[nH]c1'
-    input_mol = Chem.MolFromSmiles(input_smiles)
-    name = 'test'
-    
-    best_conf_energy, best_conf_mol = calculateEnergy((input_mol, name))
-    print(best_conf_energy)
+    import time
+    start = time.perf_counter()
+
+    input_smiles = 'O1C=CC=C1'
+    name = 'furan' 
+    # input_mol = Chem.MolFromSmiles('c1c(c2cc(sc2)C)n[nH]c1')
+    # input_mol = Chem.MolFromSmiles('c1cc(oc1)CCCN1C(=O)C[C@@H](C1=O)O')
+    # input_mol = Chem.MolFromSmiles('c1ccccc1O')
+
+    print(change_mol_v6(name=name, smiles=input_smiles, rxn='rm_proton', reduce_smiles=True, show_mol=False))
+
+    finish = time.perf_counter()
+    print(f'Finished in {round(finish-start, 2)} second(s)')
