@@ -23,6 +23,7 @@
 import os
 import copy
 import numpy as np
+import pandas as pd
 from operator import itemgetter
 from concurrent.futures import ThreadPoolExecutor
 
@@ -33,17 +34,13 @@ from rdkit import RDLogger
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 
-from ase.units import Hartree, mol, kcal
 import molecule_formats as molfmt
 import run_xTB as run_xTB
 from modify_smiles import change_mol_v6
-from solvents_parameters import gen_solvent_df
-from solvents_parameters import find_all_combinations
 
 # CPU and memory usage
 num_cpu_single = 8 # number of cpus per job.
 mem_gb = 10 # total memory usage per task.
-
 
 
 
@@ -94,12 +91,12 @@ def calculateEnergy(args):
     """
     
     global num_cpu_single
-    global method, solvent_model, solvent
 
-    rdkit_mol, name = args
-
+    rdkit_mol, name, method, solvent_model, solvent_name = args
     method = ' '+str(method)
     solvent = '--'+solvent_model+' '+solvent_name
+
+    # rdkit_mol, name = args
     # method=' 2'  # <--- change the method for accurate calculations ('ff', ' 0', ' 1', ' 2')
     # solvent = '--alpb DMSO' # <--- change the solvent ('--gbsa solvent_name', '--alpb solvent_name', or '')
     chrg = Chem.GetFormalCharge(rdkit_mol) # checking and adding formal charge to "chrg"
@@ -183,64 +180,87 @@ def calculateEnergy(args):
     return best_conf_energy, best_conf_mol
 
 
-def calc_E_rel(input_smiles, name, rxn_type='rm_proton'):
+def calc_pKa(E_rel, T=None, pKa_ref=None):
+    if T == None:
+        T = 298.15 #K
+    
+    R = 1.987 #kcal/(mol*K) or 8.31441 J/(mol*K) gas constant 
+
+    pKa = pKa_ref + (E_rel/(R*T*np.log(10)))
+
+    return pKa   
+
+
+def calc_E_rel(input_smiles, name, rxn_type='rm_proton', method=2, solvent_model='alpb', solvent_name='DMSO'):
     lst_E = []
     lst_E_rel = []
+    lst_pKa_deprot = []
     input_mol = Chem.MolFromSmiles(input_smiles)
 
-    best_conf_energy_neutral, _ = calculateEnergy((input_mol, name))
-    print(name)
-    print(f'E_neutral = {best_conf_energy_neutral}')   
+    E_neutral, _ = calculateEnergy((input_mol, name, method, solvent_model, solvent_name))
+    E_neutral = round(E_neutral, 2)
+    # print(name)
+    # print(f'E_neutral = {E_neutral}')
     
 
-    lst_name_deprot, _, lst_smiles_deprot, _, lst_atommapnum = change_mol_v6(name=name, smiles=input_smiles, rxn=rxn_type, reduce_smiles=True, show_mol=False)
+    lst_name_deprot, _, lst_smiles_deprot, _, _ = change_mol_v6(name=name, smiles=input_smiles, rxn=rxn_type, reduce_smiles=True, show_mol=False)
     lst_mol_deprot = [Chem.MolFromSmiles(smi) for smi in lst_smiles_deprot]
 
     for name, mol in list(zip(lst_name_deprot, lst_mol_deprot)):
-        best_conf_energy_deprot, _ = calculateEnergy((mol, name))
-        lst_E.append(best_conf_energy_deprot)
-        print(name)
-        print(f'E_deptrot = {best_conf_energy_deprot}')
-        E_rel = best_conf_energy_deprot - best_conf_energy_neutral
+        E_deprot, _ = calculateEnergy((mol, name, method, solvent_model, solvent_name))
+        lst_E.append(round(E_deprot, 2))
+        E_rel = round(E_deprot - E_neutral, 2)
         lst_E_rel.append(E_rel)
+        pKa_deprot = round(calc_pKa(E_rel=E_rel, pKa_ref=35), 2)
+        lst_pKa_deprot.append(pKa_deprot)
+        # print(f'd_G = {E_rel:.2f} kcal/mol')
+        # print(f'pKa_deprot = {pKa_deprot}')
     
-    return best_conf_energy_neutral, lst_name_deprot, lst_smiles_deprot, lst_E, lst_E_rel, lst_atommapnum
+    return E_neutral, lst_name_deprot, lst_E, lst_E_rel, lst_pKa_deprot
 
+def merge_dicts(dict1, dict2):
+    return dict1.update(dict2)
 
-def control_calcs(df):
-    global method, solvent_model, solvent
+def control_calcs(df, xtb_params):
+    df = df.copy()
 
     df['E_neutral'] = pd.Series(dtype='object')
-    df['lst_smiles_deprot'] = pd.Series(dtype='object')
     df['lst_name_deprot'] = pd.Series(dtype='object')
     df['lst_E'] = pd.Series(dtype='object')
     df['lst_E_rel'] = pd.Series(dtype='object')
-    df['lst_pKa'] = pd.Series(dtype='object')
-    df['lst_atomsite'] = pd.Series(dtype='object')
+    df['lst_pKa_deprot'] = pd.Series(dtype='object')
     df['gfn_method'] = pd.Series(dtype='object')
     df['solvent_model'] = pd.Series(dtype='object')
     df['solvent_name'] = pd.Series(dtype='object')
-    
-    for idx, row in df.iterrows():
 
+    for idx, row in df.iterrows():
         name = row['name']
         smiles = row['smiles']
         
-        ### RUN CALCULATIONS ###
-        E_neutral, lst_name_deprot, lst_smiles_deprot, lst_E, lst_E_rel, lst_atomsite = calc_E_rel(smiles, name, rxn_type='rm_proton')
+        params = {
+            'input_smiles' : smiles,
+            'name' : name, 
+            'rxn_type' : 'rm_proton'
+            }
+
+        #merges xtb parameters into the params dictionary
+        merge_dicts(params, xtb_params)
+        print(params)
         
-        df.at[idx, 'E_neutral']  = E_neutral
-        df.at[idx, 'lst_smiles_deprot'] = lst_smiles_deprot
+        ### RUN CALCULATIONS ###
+        # E_neutral, lst_name_deprot, lst_E, lst_E_rel, lst_pKa_deprot= calc_E_rel(smiles, name, rxn_type='rm_proton', method=2, solvent_model='alpb', solvent_name='DMSO')
+        E_neutral, lst_name_deprot, lst_E, lst_E_rel, lst_pKa_deprot= calc_E_rel(**params)
+        
+        df.at[idx, 'E_neutral'] = E_neutral
         df.at[idx, 'lst_name_deprot'] = lst_name_deprot
         df.at[idx, 'lst_E'] = lst_E
         df.at[idx, 'lst_E_rel'] = lst_E_rel
-        df.at[idx, 'lst_atomsite'] = lst_atomsite
-        df.at[idx, 'gfn_method'] = 'gfn'+str(method)
-        df.at[idx, 'solvent_model'] = solvent_model
-        df.at[idx, 'solvent_name'] = solvent_name
+        df.at[idx, 'lst_pKa_deprot'] = lst_pKa_deprot
+        df.at[idx, 'gfn_method'] = 'gfn'+str(params['method'])
+        df.at[idx, 'solvent_model'] = params['solvent_model']
+        df.at[idx, 'solvent_name'] = params['solvent_name']
 
     return df
-
 
 
 if __name__ == "__main__":
@@ -248,36 +268,54 @@ if __name__ == "__main__":
     import pandas as pd
     import submitit
     import time
-    import sys
+    from pathlib import Path
 
-    method = sys.argv[1] #2
-    solvent_model = sys.argv[2] #'alpb'
-    solvent_name = sys.argv[3] #'DMSO'
+    root_path = Path.home()
+    print(root_path)
+    pKalculator_path = Path(root_path/'pKalculator')
 
-    df = pd.read_csv('../../test/compounds_paper.smiles', sep=' ') #dataset
-    # df = df.head(2)
+    df = pd.read_csv(Path(pKalculator_path/'test'/'compounds_paper.smiles'), sep=' ') #dataset
+    # df = pd.read_csv('../../test/compounds_paper.smiles', sep=' ') #dataset
+    df = df.head(2)
+    print(df)
 
-    executor = submitit.AutoExecutor(folder=sys.argv[4]) #"submitit_pKalculator_old"
+    xtb_params = {
+            'method' : 2, 
+            'solvent_model' : 'alpb',
+            'solvent_name' : 'DMSO'
+            }
+
+    # #Create a submitit folder for several parameters
+    # path = Path(pKalculator_path/'src'/'pKalculator'/'submitit_pKalculator')
+    # try:
+    #     path.mkdir(mode=0o755, parents=True, exist_ok=True)
+    # except FileExistsError:
+    #     print("Folder is already there")
+    # else:
+    #     print("Folder was created")
+    
+    
+    executor = submitit.AutoExecutor(folder="submitit_pKalculator") #Path(path/"submitit_pKalculator_test"
     executor.update_parameters(
         name="pKalculator",
         cpus_per_task=int(num_cpu_single),
         mem_gb=int(mem_gb),
         timeout_min=6000,
-        slurm_partition="kemi1",
+        slurm_partition="kemi1", #"kemi1"
         slurm_array_parallelism=50,
     )
     print(executor)
 
     jobs = []
     with executor.batch():
-        chunk_size = 10
+        chunk_size = 1
         for start in range(0, df.shape[0], chunk_size):
             df_subset = df.iloc[start:start + chunk_size]
-            job = executor.submit(control_calcs, df_subset)
+            print(df_subset)
+            job = executor.submit(control_calcs(df=df, xtb_params=xtb_params), df_subset)
             jobs.append(job)
 
-#python core.py 1 'alpb' 'DMSO' submitit_pKalculator_1_alpb_DMSO_1
-
+    
     # start = time.perf_counter()
 
     # # input_smiles = 'c1c(c2cc(sc2)C)n[nH]c1'
@@ -293,8 +331,8 @@ if __name__ == "__main__":
 
     # lst_name_deprot, lst_E_rel, lst_pKa_deprot = calc_E_rel(input_smiles, name, rxn_type='rm_proton')
     # print(list(zip(lst_name_deprot, lst_E_rel, lst_pKa_deprot)))
-    # # for name_deprot, E_rel in list(zip(lst_name_deprot, lst_E_rel)):
-    # #     print(f'{name_deprot}, pKa = {calc_pKa(E_rel=E_rel, pKa_ref=35)}')
+    # for name_deprot, E_rel in list(zip(lst_name_deprot, lst_E_rel)):
+    #     print(f'{name_deprot}, pKa = {calc_pKa(E_rel=E_rel, pKa_ref=35)}')
 
     # finish = time.perf_counter()
     # print(f'Finished in {round(finish-start, 2)} second(s)')
