@@ -1,0 +1,13 @@
+.vscode
+.ipynb_checkpoints
+__pycache__/
+data/raw/
+data/processed/
+data/external/reaxys/
+data/external/jiang_et_al/
+dep/
+test/
+notebooks/
+reports/
+pka_predictor_ree/
+experimental/
