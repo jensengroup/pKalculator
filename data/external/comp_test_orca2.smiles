@@ -1,0 +1,2 @@
+name,smiles,pka_exp,pka_theor,ref
+furan,O1C=CC=C1,35.0,35.0,5a

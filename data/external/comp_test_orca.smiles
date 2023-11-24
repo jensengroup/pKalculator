@@ -1,0 +1,4 @@
+name smiles pka_exp pka_theor ref
+furan O1C=CC=C1 35.0 35.0 5a
+thiophene S1C=CC=C1 32.5 33.5 5a
+comp349 O=S(=O)(F)Cc1ccccc1 16.9 blank blank
