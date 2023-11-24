@@ -1,0 +1,3 @@
+[submodule "src/smi2gcs"]
+	path = src/smi2gcs
+	url = https://github.com/ChemRMB/smi2gcs
