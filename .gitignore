@@ -1,5 +1,5 @@
-.vscode
-.ipynb_checkpoints
+.vscode/
+.ipynb_checkpoints/
 __pycache__/
 data/raw/
 data/processed/

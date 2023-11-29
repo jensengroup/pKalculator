@@ -12,10 +12,9 @@ import re
 import sys
 
 sys.path.insert(0, "../smi2gcs")
-from DescriptorCreator.PrepAndCalcDescriptor import Generator
+# FIX THIS WHEN WORKING IN ANOTHER DIRECTORY
+# from DescriptorCreator.PrepAndCalcDescriptor import Generator
 
-# from analyse_data import *
-# from analyse_data import get_ref_df
 
 path_data = Path(Path.home() / "pKalculator" / "data" / "external")
 path_submitit = Path(
@@ -347,6 +346,20 @@ def merge_sdf(input_folder="", output_file=""):
     return
 
 
+def calc_pka_lfer(e_rel: float) -> float:
+    pka = 0.5941281 * e_rel - 159.33107321
+    return pka
+
+
+def pka_dmso_to_pka_thf(pka: float, reverse=False) -> float:
+    pka_thf = -0.963 + 1.046 * pka
+    if reverse:
+        pka_dmso = (pka_thf + 0.963) / 1.046
+        return pka_dmso
+
+    return pka_thf
+
+
 if __name__ == "__main__":
     path_submitit = Path(
         Path.home() / "pKalculator" / "data" / "raw" / "bordwell" / "submitit"
@@ -396,6 +409,10 @@ if __name__ == "__main__":
     df_results["e_rel_min"] = df_results.apply(
         lambda row: min(row["lst_e_rel_sp"]), axis=1
     )
+    df_results["lst_pka_lfer"] = df_results.lst_e_rel_sp.apply(
+        lambda x: [calc_pka_lfer(e_rel) for e_rel in x]
+    )
+    df_results["pka_min_sp"] = df_results.lst_pka_lfer.apply(lambda x: min(x))
     # set atom index to 0 if it is not the index with the minimum pka value
     # df_results['atom_lowest'] = df_results.apply(lambda row : [0 if i != row.pka_min_sp else 1 for i in row.lst_pka_sp], axis=1)
     print("calculating cm5 charges and descriptor vectors")
