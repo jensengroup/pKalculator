@@ -267,6 +267,11 @@ def calculateEnergy(rdkit_mol: Chem.rdchem.Mol, name: str, smi: str):
     rot_bond = Chem.rdMolDescriptors.CalcNumRotatableBonds(rdkit_mol)
     n_conformers = min(1 + 3 * rot_bond, 20)
 
+    # check if the molecule has a bridgehead atom and add more conformers
+    query_bridgehead_mol = Chem.MolFromSmarts("[Ax{3-4}]")  #'[x{3-4}]']
+    if rdkit_mol.GetSubstructMatches(query_bridgehead_moll):
+        n_conformers = min(10 + 3 * rot_bond, 20)
+
     ps = AllChem.ETKDGv3()
     ps.useExpTorsionAnglePrefs = True
     ps.useBasicKnowledge = True
