@@ -11,9 +11,9 @@ from rdkit.Chem import Draw
 import re
 import sys
 
-sys.path.insert(0, "../smi2gcs")
+sys.path.insert(0, "/lustre/hpc/kemi/borup/pKalculator/src/smi2gcs'")
 # FIX THIS WHEN WORKING IN ANOTHER DIRECTORY
-# from DescriptorCreator.PrepAndCalcDescriptor import Generator
+from DescriptorCreator.PrepAndCalcDescriptor import Generator
 
 
 def load_pickles(folder):
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     output = df_results.apply(
         lambda row: get_cm5_desc_vector(
             smi_name=row["names"],
-            smi_map=row["smiles"],
+            smi=row["smiles"],
             lst_atom_index=row[
                 "lst_atomindex_deprot"
             ],  # lst_atom_index , lst_atom_index_deprot,
@@ -263,6 +263,6 @@ if __name__ == "__main__":
             / "data"
             / "processed"
             / "misc"
-            / "df_results_test.pkl"
+            / "df_results_test2.pkl"
         )
     )

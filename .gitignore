@@ -3,6 +3,7 @@
 __pycache__/
 data/raw/
 data/processed/
+data/prelim
 data/external/bordwell/bordwellCH_rmb_v3_20230515.ods
 data/external/reaxys/
 data/external/jiang_et_al/
@@ -13,15 +14,20 @@ data/external/shen_et_al/xyz_files/
 data/external/shen_et_al/data_paper_anions.ods
 data/external/shen_et_al/data_paper_neutral.ods
 
-dep/
+dep/orca_5_0_4
+dep/orca_5_0_4_linux_x86-64_shared_openmpi411
+dep/xtb-6.4.1
 test/
 notebooks/
 reports/
-pka_predictor_ree/
 experimental/
-src/pKalculator/core_4.py
-src/pKalculator/core_5.py
-src/pKalculator/core_6.py
-src/pKalculator/run_orca_2.py
-src/pKalculator/run_orca_3.py
-src/pKalculator/run_orca_4.py
+
+
+# 
+src/ml_pkalculator/ml_analyse.py
+src/ml_pkalculator/ml_train_on_all_data.py
+src/ml_pkalculator/ml_validator_clas.py
+src/ml_pkalculator/ml_validator_reg.py
+src/ml_pkalculator/ml_visualize.py
+
+utils/
