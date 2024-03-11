@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 import re
+import random
 from rdkit import Chem
 from rdkit.Chem import rdmolops
 from rdkit.Chem.EnumerateStereoisomers import (
@@ -248,6 +249,7 @@ def deprotonate(name: str, smiles: str, rxn: str):
     lst_new_mols = []
     lst_new_smiles = []
     lst_atommapnum = []
+    lst_atomidx = []
     lst_new_mols_corrected = []
 
     ref_mol = Chem.MolFromSmiles(smiles)
@@ -297,12 +299,13 @@ def deprotonate(name: str, smiles: str, rxn: str):
 
     for a_index, mol in lst_reduced_atoms_mols:
         a = mol.GetAtomWithIdx(mol.GetNumAtoms() - 1)
+        # a = mol.GetAtomWithIdx(a_index)
         a.SetAtomMapNum(a_index + 1)
         lst_atommapnum.append(a.GetAtomMapNum())
+        lst_atomidx.append(a_index)
         # s = Chem.MolToSmiles(mol,isomericSmiles=True, canonical=False, kekuleSmiles=True)
         lst_new_smiles.append(Chem.MolToSmiles(mol))
         lst_new_mols_corrected.append(mol)
-
     # Checks if the chirality is the same as the initial molecule
     lst_new_smiles_2 = [
         check_same_chirality(ref_mol_isomer_smiles, deprot_smiles)
@@ -319,94 +322,142 @@ def deprotonate(name: str, smiles: str, rxn: str):
         lst_new_smiles_2,
         lst_new_smiles_nomap,
         lst_atommapnum,
+        lst_atomidx,
     )
 
 
-def test_deprotonateCH():
-    test_results = {
-        "test0": (
-            "[o:1]1[cH:2][cH:3][cH:4][cH:5]1",
-            ["test0#-1=2", "test0#-1=3"],
-            ["[O:1]1[C-:2]=[CH:3][CH:4]=[CH:5]1", "[O:1]1[CH:2]=[C-:3][CH:4]=[CH:5]1"],
-            ["[c-]1ccco1", "[c-]1ccoc1"],
-            [2, 3],
-        ),
-        "test1": (
-            "[cH:1]1[c:2](-[c:3]2[cH:4][c:5]([CH3:8])[s:6][cH:7]2)[n:9][nH:10][cH:11]1",
-            ["test1#-1=1", "test1#-1=4", "test1#-1=7", "test1#-1=8", "test1#-1=11"],
-            [
-                "[C-:1]1=[CH:11][NH:10][N:9]=[C:2]1[C:3]1=[CH:7][S:6][C:5]([CH3:8])=[CH:4]1",
-                "[CH:1]1=[CH:11][NH:10][N:9]=[C:2]1[C:3]1=[CH:7][S:6][C:5]([CH3:8])=[C-:4]1",
-                "[CH:1]1=[CH:11][NH:10][N:9]=[C:2]1[C:3]1=[C-:7][S:6][C:5]([CH3:8])=[CH:4]1",
-                "[CH:1]1=[CH:11][NH:10][N:9]=[C:2]1[C:3]1=[CH:7][S:6][C:5]([CH2-:8])=[CH:4]1",
-                "[CH:1]1=[C-:11][NH:10][N:9]=[C:2]1[C:3]1=[CH:7][S:6][C:5]([CH3:8])=[CH:4]1",
-            ],
-            [
-                "Cc1cc(-c2[c-]c[nH]n2)cs1",
-                "Cc1[c-]c(-c2cc[nH]n2)cs1",
-                "Cc1cc(-c2cc[nH]n2)[c-]s1",
-                "[CH2-]c1cc(-c2cc[nH]n2)cs1",
-                "Cc1cc(-c2c[c-][nH]n2)cs1",
-            ],
-            [1, 4, 7, 8, 11],
-        ),
-        "test2": (
-            "[cH:1]1[cH:2][c:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])[o:4][cH:5]1",
-            [
-                "test2#-1=1",
-                "test2#-1=2",
-                "test2#-1=5",
-                "test2#-1=6",
-                "test2#-1=7",
-                "test2#-1=8",
-                "test2#-1=12",
-                "test2#-1=13",
-            ],
-            [
-                "[C-:1]1=[CH:5][O:4][C:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[C-:2]1",
-                "[CH:1]1=[C-:5][O:4][C:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH-:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH2:6][CH-:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH2:6][CH2:7][CH-:8][N:9]2[C:10](=[O:11])[CH2:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH-:12][C@H:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-                "[CH:1]1=[CH:5][O:4][C:3]([CH2:6][CH2:7][CH2:8][N:9]2[C:10](=[O:11])[CH2:12][C-:13]([OH:16])[C:14]2=[O:15])=[CH:2]1",
-            ],
-            [
-                "O=C1C[C@H](O)C(=O)N1CCCc1c[c-]co1",
-                "O=C1C[C@H](O)C(=O)N1CCCc1[c-]cco1",
-                "O=C1C[C@H](O)C(=O)N1CCCc1cc[c-]o1",
-                "O=C1C[C@H](O)C(=O)N1CC[CH-]c1ccco1",
-                "O=C1C[C@H](O)C(=O)N1C[CH-]Cc1ccco1",
-                "O=C1C[C@H](O)C(=O)N1[CH-]CCc1ccco1",
-                "O=C1[CH-][C@H](O)C(=O)N1CCCc1ccco1",
-                "O=C1C[C-](O)C(=O)N1CCCc1ccco1",
-            ],
-            [1, 2, 5, 6, 7, 8, 12, 13],
-        ),
-        "test3": (
-            "[CH3:1][C:2]([CH3:3])=[O:4]",
-            ["test3#-1=1"],
-            ["[CH2-:1][C:2]([CH3:3])=[O:4]"],
-            ["[CH2-]C(C)=O"],
-            [1],
-        ),
-    }
+def remove_Hs(
+    name=None, smiles=None, rdkit_mol=None, atomsite=None, gen_all=False, remove_H=False
+):
+    """_summary_
+    Deprotonates a molecule at a specific atom site and removes the hydrogens if atomsite and gen_all=True is invoked.
+    Example:
 
-    lst_input_smiles = [
-        "O1C=CC=C1",
-        "c1c(c2cc(sc2)C)n[nH]c1",
-        "c1cc(oc1)CCCN1C(=O)C[C@@H](C1=O)O",
-        "CC(C)=O",
+    remove_Hs(name='test', smiles='F[C@@]12C[C@]1(Cl)C[C@@H](/C=C/Br)O2', atomsite=3, gen_all=False, remove_H=True)
+    Output:
+        ((2,),
+        (3,),
+        ('F[C@@]12[CH-][C@]1(Cl)C[C@@H](/C=C/Br)O2',),
+        ('[F:1][C@@:2]12[CH-:3][C@:4]1([Cl:5])[CH2:6][C@@H:7](/[CH:8]=[CH:9]/[Br:10])[O:11]2',),
+        (<rdkit.Chem.rdchem.Mol at 0x7f156c838dd0>,),
+        ('test#-1=3',),
+        {2: [11, 12]})
+
+    if gen_all == True, then all posible deprotonations on the C atom will be generated.
+    if remove_H == True, then the hydrogens will be removed from the molecule.
+
+    Example:
+    remove_Hs(name='test', smiles='F[C@@]12C[C@]1(Cl)C[C@@H](/C=C/Br)O2', atomsite=None, gen_all=True, remove_H=True)
+    Output:
+        ((2, 5, 6, 7, 8),
+        (3, 6, 7, 8, 9),
+        ('F[C@@]12[CH-][C@]1(Cl)C[C@@H](/C=C/Br)O2',
+        'F[C@@]12C[C@]1(Cl)[CH-][C@@H](/C=C/Br)O2',
+        'F[C@@]12C[C@]1(Cl)C[C-](/C=C/Br)O2',
+        'F[C@@]12C[C@]1(Cl)C[C@@H](/[C-]=C/Br)O2',
+        'F[C@@]12C[C@]1(Cl)C[C@@H](/C=[C-]/Br)O2'),
+        ('[F:1][C@@:2]12[CH-:3][C@:4]1([Cl:5])[CH2:6][C@@H:7](/[CH:8]=[CH:9]/[Br:10])[O:11]2',
+        '[F:1][C@@:2]12[CH2:3][C@:4]1([Cl:5])[CH-:6][C@@H:7](/[CH:8]=[CH:9]/[Br:10])[O:11]2',
+        '[F:1][C@@:2]12[CH2:3][C@:4]1([Cl:5])[CH2:6][C-:7](/[CH:8]=[CH:9]/[Br:10])[O:11]2',
+        '[F:1][C@@:2]12[CH2:3][C@:4]1([Cl:5])[CH2:6][C@@H:7](/[C-:8]=[CH:9]/[Br:10])[O:11]2',
+        '[F:1][C@@:2]12[CH2:3][C@:4]1([Cl:5])[CH2:6][C@@H:7](/[CH:8]=[C-:9]/[Br:10])[O:11]2'),
+        (<rdkit.Chem.rdchem.Mol at 0x7f156c83a0a0>,
+        <rdkit.Chem.rdchem.Mol at 0x7f156c839930>,
+        <rdkit.Chem.rdchem.Mol at 0x7f156c838970>,
+        <rdkit.Chem.rdchem.Mol at 0x7f156c83aab0>,
+        <rdkit.Chem.rdchem.Mol at 0x7f156c83a7a0>),
+        ('test#-1=3', 'test#-1=6', 'test#-1=7', 'test#-1=8', 'test#-1=9'),
+        {2: [11, 12], 5: [13, 14], 6: [15], 7: [16], 8: [17]})
+
+    Args:
+        name (_type_, optional): _description_. Defaults to None.
+        smiles (_type_, optional): _description_. Defaults to None.
+        rdkit_mol (_type_, optional): _description_. Defaults to None.
+        atomsite (_type_, optional): _description_. Defaults to None.
+        gen_all (bool, optional): _description_. Defaults to False.
+        remove_H (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
+    random.seed(42)
+    if smiles:
+        rdkit_mol = Chem.MolFromSmiles(smiles)
+
+    rdkit_mol = Chem.AddHs(rdkit_mol)
+    charge_neutral = Chem.GetFormalCharge(rdkit_mol)
+
+    dict_atom_idx_to_H_indices = {
+        atom_idx: [
+            atom_neighbor.GetIdx()
+            for atom_neighbor in atom.GetNeighbors()
+            if atom_neighbor.GetSymbol() == "H"
+        ]
+        for atom_idx, atom in enumerate(rdkit_mol.GetAtoms())
+        if atom.GetSymbol() != "H" and atom.GetSymbol() == "C"
+    }  # note if atom.GetSymbol() == "C" is note invoked, O-H, N-H, etc. will also get deprotonated.
+    dict_atom_idx_to_H_indices = {
+        k: v for k, v in dict_atom_idx_to_H_indices.items() if v
+    }  # removes empty lists
+    lst_idx_deprot_mol = []
+
+    if not gen_all:
+        dict_atom_idx_to_H_indices = {
+            k: v for k, v in dict_atom_idx_to_H_indices.items() if k == atomsite - 1
+        }
+
+    # print('dict')
+    # print(dict_atom_idx_to_H_indices)
+
+    for atom_idx, H_indices in dict_atom_idx_to_H_indices.items():
+        H_idx = random.choice(H_indices)
+        rdkit_mol2 = Chem.RWMol(rdkit_mol)
+        rdkit_mol2.RemoveAtom(H_idx)
+        rdkit_mol2.GetAtomWithIdx(atom_idx).SetFormalCharge(-1)
+        rdkit_mol2 = rdkit_mol2.GetMol()
+        if remove_H:
+            rdkit_mol2 = Chem.RemoveHs(rdkit_mol2)
+        smi2 = Chem.MolToSmiles(rdkit_mol2)
+        for i, a in enumerate(rdkit_mol2.GetAtoms()):
+            a.SetAtomMapNum(i + 1)
+        smi2_map = Chem.MolToSmiles(rdkit_mol2)
+        charge_deprot = Chem.GetFormalCharge(rdkit_mol2)
+        name_deprot = f"{name}#{charge_neutral+charge_deprot}={atom_idx+1}"
+        lst_idx_deprot_mol.append(
+            (atom_idx, atom_idx + 1, smi2, smi2_map, rdkit_mol2, name_deprot)
+        )
+
+    # Check for unique smiles
+    lst_canon_smiles = [
+        remove_mapping(Chem.MolToSmiles(mol))
+        for mol in [x[4] for x in lst_idx_deprot_mol]
     ]
 
-    lst_deprotonate = [
-        deprotonate(name=f"test{i}", smiles=smi, rxn="rm_proton")
-        for i, smi in enumerate(lst_input_smiles)
-    ]
+    # find the unique smiles and sort them based on the deprotonated atom number
+    _, uniqueIdx = np.unique(lst_canon_smiles, return_index=True)
 
-    for idx, test in enumerate(lst_deprotonate):
-        assert test == test_results[f"test{idx}"]
+    lst_idx_deprot_mol = [
+        x for idx, x in enumerate(lst_idx_deprot_mol) if idx in uniqueIdx
+    ]
+    lst_idx_deprot_mol = sorted(lst_idx_deprot_mol, key=lambda x: x[0])
+    (
+        lst_atom_index_deprot,
+        lst_atomsite_deprot,
+        lst_smiles_deprot,
+        lst_smiles_map_deprot,
+        lst_mol_deprot,
+        lst_names_deprot,
+    ) = zip(*lst_idx_deprot_mol)
+
+    return (
+        lst_atom_index_deprot,
+        lst_atomsite_deprot,
+        lst_smiles_deprot,
+        lst_smiles_map_deprot,
+        lst_mol_deprot,
+        lst_names_deprot,
+        dict_atom_idx_to_H_indices,
+    )
 
 
 # ---------------------------------------------------------------------------------------------
@@ -426,9 +477,28 @@ if __name__ == "__main__":
         deprotonate(name=f"test{i}", smiles=smi, rxn="rm_proton")
         for i, smi in enumerate(lst_input_smiles)
     ]
-    for test in lst_deprotonate:
-        print(test)
+
+    # removeHs
+    lst_removeHs = [
+        remove_Hs(
+            name=f"test{i}",
+            smiles=smi,
+            rdkit_mol=None,
+            atomsite=None,
+            gen_all=True,
+            remove_H=True,
+        )
+        for i, smi in enumerate(lst_input_smiles)
+    ]
+
+    print("######################")
+    for test_deprotonate, test_removeHs in zip(lst_deprotonate, lst_removeHs):
+        print("deprotonate")
+        print(test_deprotonate)
         print("--" * 20)
+        print("removeHs")
+        print(test_removeHs)
+        print("######################")
         print("\n")
 
     finish = time.perf_counter()
