@@ -114,37 +114,40 @@ def create_orca_input(
     functional="",
     basis_set="",
     dispersion="",
-    optfreq=False,
+    opt=False,
+    freq=False,
     solvent_name="DMSO",
     inp_name="orca_calc.inp",
 ):
     with open(Path(f"{path}/{inp_name}"), "w") as input_file:
         input_file.write("# ORCA input file\n")
 
-        if functional == "r2SCAN-3c":
-            if optfreq:
-                input_file.write(f"!R2SCAN-3C OPT FREQ CPCM({solvent_name})\n")
-            else:
-                input_file.write("! SP R2SCAN-3C CPCM\n")
-        else:
-            if dispersion:
-                input_file.write(f"! {functional} D4 {basis_set}")
-            else:
-                input_file.write(f"! {functional} {basis_set}")
+        base_str = f"! {functional}"
+        if dispersion:
+            base_str += " D4"
+        base_str += f" {basis_set}"
 
-            if optfreq:
-                input_file.write(
-                    f" OPT FREQ CPCM({solvent_name})\n"
-                )  # OPT and FREQ: Analytical Hessian is not implemented for SMD
-            else:
-                input_file.write(" CPCM\n")
+        if functional.lower() == "r2scan-3c":
+            base_str = "! R2SCAN-3C"
+
+        if opt:
+            base_str += " OPT"
+        if freq:
+            base_str += " FREQ"
+        if opt or freq:
+            base_str += f" CPCM({solvent_name})"
+        else:
+            base_str += " CPCM"
+        base_str += "\n"
+
+        input_file.write(base_str)
 
         input_file.write(
             f"\n%maxcore {(mem * 0.75) / ncores}\n%pal nprocs {ncores} end\n"
         )
         input_file.write("\n%scf\nMaxIter 1000\nend\n")
 
-        if not optfreq:
+        if not (opt or freq):  # Adjust condition for CPCM
             input_file.write(f'%cpcm smd true SMDsolvent "{solvent_name}" end\n')
 
         input_file.write(
@@ -160,22 +163,26 @@ def create_orca_input_rerun(
     functional="",
     basis_set="",
     dispersion="",
-    optfreq=False,
+    opt=False,
+    freq=False,
     solvent_name="DMSO",
     inp_name="orca_calc_rerun.inp",
 ):
     lst_latest_geom = None
+    loaded_xyz_file = None  # Ensure this is defined for all paths
     orca_calc_xyz = "orca_calc.xyz"
     xtbopt_xyz = "xtbopt.xyz"
 
     if Path(Path(path) / "orca_calc.out").is_file():
-        energy = check_orca_success(path=path, optfreq=optfreq, out_file="orca_calc")
-        print(f"energy: {energy}")
-        if energy == float("inf"):
+        same_structure = check_input_output_structure_orca(
+            path=path, xyzfile=orca_calc_xyz
+        )
+
+        if not same_structure:
             if Path(Path(path) / xtbopt_xyz).is_file():
                 loaded_xyz_file = load_and_prepare_xyz(path=path, xyz_file=xtbopt_xyz)
                 print("using xtbopt.xyz to create 'orca_calc_rerun.inp'")
-        elif energy != float("inf") and optfreq:
+        elif same_structure and opt:
             lst_latest_geom = get_latest_geom(Path(path) / "orca_calc.out")
             print(
                 "using latest geometry optimization from orca_calc.out to create 'orca_calc_rerun.inp'"
@@ -189,45 +196,123 @@ def create_orca_input_rerun(
     with open(Path(f"{path}/{inp_name}"), "w") as input_file:
         input_file.write("# ORCA input file\n")
 
-        if functional == "r2SCAN-3c":
-            if optfreq:
-                input_file.write(f"!R2SCAN-3C Slowconv OPT FREQ CPCM({solvent_name})\n")
-            else:
-                input_file.write("! SP R2SCAN-3C Slowconv CPCM\n")
+        # Adjusting command line based on functional, opt, freq
+        base_str = f"! {functional}"
+        if dispersion:
+            base_str += " D4"
+        base_str += f" {basis_set} Slowconv"
+
+        if functional.lower() == "r2scan-3c":
+            base_str = "!R2SCAN-3C Slowconv"
+
+        if opt:
+            base_str += " OPT"
+        if freq:
+            base_str += " FREQ"
+        if opt or freq:
+            base_str += f" CPCM({solvent_name})"
         else:
-            if dispersion:
-                input_file.write(f"! {functional} D4 {basis_set} Slowconv")
-            else:
-                input_file.write(f"! {functional} {basis_set} Slowconv")
+            base_str += " CPCM"
+        base_str += "\n"
 
-            if optfreq:
-                input_file.write(
-                    f" OPT FREQ CPCM({solvent_name})\n"
-                )  # OPT and FREQ: Analytical Hessian is not implemented for SMD
-            else:
-                input_file.write(" CPCM\n")
-
-        # input_file.write('%base "orca_calc_rerun"')
+        input_file.write(base_str)
         input_file.write(
             f"\n%maxcore {(mem * 0.75) / ncores}\n%pal nprocs {ncores} end\n"
         )
-
-        if not optfreq:
+        if not (opt or freq):
             input_file.write(f'%cpcm smd true SMDsolvent "{solvent_name}" end\n')
-
-        # code block for %sfc
         input_file.write("\n%scf\nMaxIter 5000\nend\n")
-        # code block for %geom
-        input_file.write(
-            "\n%geom\nMaxIter 5000\nMaxStep 0.1\nend\n"
-        )  # default value for MaxStep is 0.3
+        input_file.write("\n%geom\nMaxIter 5000\nMaxStep 0.1\nend\n")
+
+        # Handling XYZ content
         input_file.write(f"\n*xyz {chrg} 1\n")
         if lst_latest_geom is not None:
             input_file.writelines(lst_latest_geom)
-        else:
+        elif loaded_xyz_file is not None:
             input_file.writelines("".join(loaded_xyz_file))
         input_file.write("*")
+
     print(f"{inp_name} created")
+
+
+# def create_orca_input_rerun(
+#     chrg,
+#     path,
+#     ncores=2,
+#     mem=10000,
+#     functional="",
+#     basis_set="",
+#     dispersion="",
+#     optfreq=False,
+#     solvent_name="DMSO",
+#     inp_name="orca_calc_rerun.inp",
+# ):
+#     lst_latest_geom = None
+#     orca_calc_xyz = "orca_calc.xyz"
+#     xtbopt_xyz = "xtbopt.xyz"
+
+#     if Path(Path(path) / "orca_calc.out").is_file():
+#         same_structure = check_input_output_structure_orca(
+#             path=path, xyzfile="orca_calc.xyz"
+#         )
+
+#         if not same_structure:
+#             if Path(Path(path) / xtbopt_xyz).is_file():
+#                 loaded_xyz_file = load_and_prepare_xyz(path=path, xyz_file=xtbopt_xyz)
+#                 print("using xtbopt.xyz to create 'orca_calc_rerun.inp'")
+#         elif same_structure and optfreq:
+#             lst_latest_geom = get_latest_geom(Path(path) / "orca_calc.out")
+#             print(
+#                 "using latest geometry optimization from orca_calc.out to create 'orca_calc_rerun.inp'"
+#             )
+#         elif Path(Path(path) / orca_calc_xyz).is_file():
+#             loaded_xyz_file = load_and_prepare_xyz(path=path, xyz_file=orca_calc_xyz)
+#             print("using orca_calc.xyz to create 'orca_calc_rerun.inp'")
+#     else:
+#         raise Exception(f"No .out or .xyz file found in {path}")
+
+#     with open(Path(f"{path}/{inp_name}"), "w") as input_file:
+#         input_file.write("# ORCA input file\n")
+
+#         if functional == "r2SCAN-3c":
+#             if optfreq:
+#                 input_file.write(f"!R2SCAN-3C Slowconv OPT FREQ CPCM({solvent_name})\n")
+#             else:
+#                 input_file.write("! SP R2SCAN-3C Slowconv CPCM\n")
+#         else:
+#             if dispersion:
+#                 input_file.write(f"! {functional} D4 {basis_set} Slowconv")
+#             else:
+#                 input_file.write(f"! {functional} {basis_set} Slowconv")
+
+#             if optfreq:
+#                 input_file.write(
+#                     f" OPT FREQ CPCM({solvent_name})\n"
+#                 )  # OPT and FREQ: Analytical Hessian is not implemented for SMD
+#             else:
+#                 input_file.write(" CPCM\n")
+
+#         # input_file.write('%base "orca_calc_rerun"')
+#         input_file.write(
+#             f"\n%maxcore {(mem * 0.75) / ncores}\n%pal nprocs {ncores} end\n"
+#         )
+
+#         if not optfreq:
+#             input_file.write(f'%cpcm smd true SMDsolvent "{solvent_name}" end\n')
+
+#         # code block for %sfc
+#         input_file.write("\n%scf\nMaxIter 5000\nend\n")
+#         # code block for %geom
+#         input_file.write(
+#             "\n%geom\nMaxIter 5000\nMaxStep 0.1\nend\n"
+#         )  # default value for MaxStep is 0.3
+#         input_file.write(f"\n*xyz {chrg} 1\n")
+#         if lst_latest_geom is not None:
+#             input_file.writelines(lst_latest_geom)
+#         else:
+#             input_file.writelines("".join(loaded_xyz_file))
+#         input_file.write("*")
+#     print(f"{inp_name} created")
 
 
 def run_orca_calculation(path, input_file="orca_calc.inp"):
@@ -259,7 +344,8 @@ def run_orca(
     functional="",
     basis_set="",
     dispersion="",
-    optfreq=False,
+    opt=False,
+    freq=False,
     solvent_name="DMSO",
 ):
     # Create ORCA input file
@@ -272,7 +358,8 @@ def run_orca(
         functional=functional,
         basis_set=basis_set,
         dispersion=dispersion,
-        optfreq=optfreq,
+        opt=opt,
+        freq=freq,
         solvent_name=solvent_name,
         inp_name="orca_calc.inp",
     )
@@ -285,7 +372,7 @@ def run_orca(
     save_orca_output(output=output, path=path, output_file="orca_calc.out")
 
     # Check if ORCA calc was successful
-    energy = check_orca_success(path=path, optfreq=optfreq, out_file="orca_calc")
+    energy = check_orca_success(path=path, opt=opt, out_file="orca_calc")
 
     return energy
 
@@ -298,7 +385,8 @@ def rerun_orca(
     functional="",
     basis_set="",
     dispersion="",
-    optfreq=False,
+    opt=False,
+    freq=False,
     solvent_name="DMSO",
 ):
     """
@@ -312,7 +400,8 @@ def rerun_orca(
         functional=functional,
         basis_set=basis_set,
         dispersion=dispersion,
-        optfreq=optfreq,
+        opt=opt,
+        freq=freq,
         solvent_name=solvent_name,
         inp_name="orca_calc_rerun.inp",
     )
@@ -325,7 +414,7 @@ def rerun_orca(
     save_orca_output(output=output, path=path, output_file="orca_calc_rerun.out")
 
     # Check if ORCA calc was successful
-    energy = check_orca_success(path=path, optfreq=optfreq, out_file="orca_calc_rerun")
+    energy = check_orca_success(path=path, opt=opt, out_file="orca_calc_rerun")
 
     return energy
 
@@ -404,9 +493,9 @@ def save_orca_output(output, path, output_file="orca_calc.out"):
         f.write(output)
 
 
-def check_orca_success(path, optfreq=False, out_file="orca_calc"):
+def check_orca_success(path, opt=False, out_file="orca_calc"):
     # Check if ORCA calc was successful here
-    if optfreq:
+    if opt:
         if not check_input_output_structure_orca(path=path, xyzfile=f"{out_file}.xyz"):
             energy = float("inf")
         else:

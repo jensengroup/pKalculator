@@ -24,7 +24,7 @@ import os
 import numpy as np
 import shutil
 import subprocess
-
+from pathlib import Path
 from rdkit import Chem
 from ase.units import Hartree, mol, kcal, kJ
 
@@ -147,3 +147,16 @@ def run_xTB(args):
         energy = float(99999)
 
     return energy, mol_calc_path
+
+
+def get_energy_xtb(path, out_file):
+    energy = float(99999)
+    with open(Path(Path(path) / out_file), "r") as f:
+        output_lines = f.read().splitlines()
+
+        for line in reversed(output_lines):
+            if "TOTAL ENERGY" in line:
+                energy = float(line.split()[3])
+                energy = energy * Hartree * mol / kcal
+                break
+    return energy
