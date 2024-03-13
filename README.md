@@ -26,24 +26,27 @@ Below is an example of how to start the QM workflow:
 
     python src/pkalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submitit submitit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
 
-The arguments are explained below
--cpus : Number of cpus per job
--mem : Memory in GB per job
--csv : csv path. The csv file must be comma seperated and contain a 'names' column and a 'smiles' column.
--calc : path for saving calculations
--submitit : path for saving results from submitit
--f : The functional to be used
--b : which basis set
--s : solvent for the 
--d : set if D4 dispersion correction
--o : set if optimization is needed
--q : set if frequency computations are required
+The arguments for the QM workflow are explained below:
+| Arguments    | Description | 
+| :------- |:---------|
+| `-cpus` | Number of cpus per job. Defaults to 4 cpus |
+| `-mem` | Amount of memory per job in GB. Defaults to 8 GB |
+| `-p` | Set the SLURM partion to be used at your HPC. Defaults to kemi1 |
+| `-csv` | csv path. The csv file must be comma seperated and contain a 'names' column and a 'smiles' column. |
+| `-calc` | path for saving calculations. Defaults to 'calculations' |
+| `-submit` | path for saving results from submitit. Defaults to 'submitit' |
+| `-f` | The functional to be used. Defaults to 'CAM-B3LYP' |
+| `-b` | which basis set. Defaults to 'def2-TZVPPD' |
+| `-s` | solvent for the. Defaults to 'DMSO' |
+| `-d` | set if D4 dispersion correction. |
+| `-o` | set if optimization is needed. |
+| `-q` | set if frequency computations are required. |
+
 
 If needed, SLURM commands can be updated to work at your HPC.
 
-- slurm_partition: SLURM partion.
-- timeout_min: The total time that is allowed for each SLURM job before time out.
-- slurm_array_parallelism: Maximum number SLURM jobs to run simultaneously (taking one molecule at a time in batch mode).
+- timeout_min| The total time that is allowed for each SLURM job before time out.
+- slurm_array_parallelism| Maximum number SLURM jobs to run simultaneously.
 
 
 ### ML workflow
@@ -51,16 +54,20 @@ Below is an example of how to use the ML workflow:
     
     python src/pkalculator/ml_pkalculator.py -s CC(=O)Cc1ccccc1 -n comp2 -m ml_data/models/full_models/reg_model_all_data_dart.txt
 
-The arguments are explained below:
--s : SMILES string
--n : Name of the compound
--m : Which model to be used. 
--e : Identify the possible site of reaction within (e) pKa units of the lowest pKa value
+The arguments for the ML workflow are explained below:
+| Arguments    | Description | 
+| :--- |:---------|
+| `-s` | SMILES string. Defaults to 'CC(=O)Cc1ccccc1' |
+| `-n` | Name of the compound. Defaults to 'comp2' |
+| `-m` | Which model to be used. Defaults to the full regression model |
+| `-e` | Identify the possible site of reaction within (e) pKa units of the lowest pKa value. Defaults to the full regression model. |
 
 Hereafter, a list of tuples are returned [(0, 23.14), (3, 18.78), (5, 42.42), (6, 42.9), (7, 43.27)]. The first element in each tuple is the atom index and the second element in each tuple is the ML predicted pKa value for that atom index.
 
 The workflow then produces an .png or .svg image of the molecule with its atom indices for easy comparison. The image of the molecule will also contain a teal circle that highlights the site with the lowest pKa value or within (e) pKa units from the lowest pKa value.
 
+#### Datasets
+All datasets can be found in `data/datasets` in the `.pkl` format. Each `.pkl` contains a pandas DataFrame that can be loaded using the following command `dataset_full = joblib.load(data/datasets/dataset_full.pkl)`
 
 
 ## Citation

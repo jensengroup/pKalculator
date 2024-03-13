@@ -4,9 +4,9 @@ __pycache__/
 data/raw/
 data/processed/
 data/prelim
-data/external/bordwell/bordwellCH_rmb_v3_20230515.ods
-data/external/reaxys/
-data/external/jiang_et_al/
+data/external/
+data/datasets/prelim_datasets/
+
 
 data/external/ibond/
 /data/external/grzybowski/pka_allchemy_bordwellCH/
@@ -14,9 +14,7 @@ data/external/shen_et_al/xyz_files/
 data/external/shen_et_al/data_paper_anions.ods
 data/external/shen_et_al/data_paper_neutral.ods
 
-dep/orca_5_0_4
-dep/orca_5_0_4_linux_x86-64_shared_openmpi411
-dep/xtb-6.4.1
+dep/
 test/
 notebooks/
 reports/
