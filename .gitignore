@@ -29,4 +29,5 @@ src/ml_pkalculator/ml_validator_reg.py
 src/ml_pkalculator/ml_visualize.py
 src/ml_pkalculator/ml_optimizer.py
 
-utils/
+utils/post_cleanup.py
+utils/mol_visualize.py
