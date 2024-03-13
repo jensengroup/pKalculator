@@ -27,5 +27,6 @@ src/ml_pkalculator/ml_train_on_all_data.py
 src/ml_pkalculator/ml_validator_clas.py
 src/ml_pkalculator/ml_validator_reg.py
 src/ml_pkalculator/ml_visualize.py
+src/ml_pkalculator/ml_optimizer.py
 
 utils/
