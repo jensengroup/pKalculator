@@ -1,7 +1,0 @@
-names,smiles
-val7,COc1cc(NC(c2c[n]c(F)cc2)=O)ccc1
-val11,O=C(Oc1ccc2C(=O)COc2c1)c3cccs3
-val16,CSc1nc(ccc1C#N)c2ccc(Cl)cc2
-val26,Cc1cc(Nc2ccn(n2)c3ccccc3)cc(C)c1OC(=O)OC(C)(C)C
-val28,COc1cc(C2SCCCS2)c(cc1OC)C(=O)c3ccc4OCOc4c3
-val31,COc1nc(C)cnc1NS(=O)(=O)c2cccnc2c3ccc(CC(C)(C)C)cc3

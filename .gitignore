@@ -1,25 +1,13 @@
 .vscode/
 .ipynb_checkpoints/
 __pycache__/
-data/raw/
-data/processed/
-data/prelim
-data/external/
-data/datasets/prelim_datasets/
-
-
-data/external/ibond/
-/data/external/grzybowski/pka_allchemy_bordwellCH/
-data/external/shen_et_al/xyz_files/
-data/external/shen_et_al/data_paper_anions.ods
-data/external/shen_et_al/data_paper_neutral.ods
-
+data/
+ml_data/
 dep/
 test/
 notebooks/
 reports/
 experimental/
-
 
 # 
 src/ml_pkalculator/ml_analyse.py

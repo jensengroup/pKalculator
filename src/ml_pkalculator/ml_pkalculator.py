@@ -1,8 +1,11 @@
 import sys
+import os
 
-# sys.path.insert(0, "../smi2gcs")
-# sys.path.insert(0, "../qm_pkalculator")
+# sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
+home_directory = os.path.expanduser("~")
+sys.path.append(os.path.join(home_directory, "pKalculator/src/qm_pkalculator"))
+sys.path.append(os.path.join(home_directory, "pKalculator/src/smi2gcs"))
 import argparse
 from pathlib import Path
 from rdkit import Chem
@@ -12,14 +15,13 @@ from rdkit.Chem import rdDepictor
 from io import BytesIO
 from PIL import Image
 from collections import defaultdict, OrderedDict
-
-
 import lightgbm as lgb
-from qm_pkalculator.modify_smiles import deprotonate, remove_Hs
+
+from modify_smiles import deprotonate, remove_Hs
 
 
 # FIX THIS WHEN WORKING IN ANOTHER DIRECTORY
-sys.path.insert(0, "/lustre/hpc/kemi/borup/pKalculator/src/smi2gcs'")
+
 # from smi2gcs.DescriptorCreator.PrepAndCalcDescriptor import Generator
 from DescriptorCreator.PrepAndCalcDescriptor import Generator
 
@@ -44,7 +46,7 @@ def get_args():
     parser.add_argument(
         "-m",
         "--model",
-        default="pKalculator/ml_data/models/full_models/reg_model_all_data_dart.txt",
+        default="model/reg_model_all_data_dart.txt",
         help="Path to the model file to use for prediction",
     )
 
@@ -144,7 +146,7 @@ if __name__ == "__main__":
     smiles = args.smiles
     name = args.name
     model = args.model
-    model = Path.home() / model
+    model = Path.cwd() / model
     if not model.exists():
         raise ValueError(f"Model file {model} does not exist. Check path and try again")
     reg_model_full = lgb.Booster(model_file=model)

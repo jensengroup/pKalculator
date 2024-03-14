@@ -74,6 +74,7 @@ def get_args():
         "--cpus",
         metavar="cpus",
         help="Number of cpus per job",
+        default=4,
         type=int,
     )
 
@@ -82,7 +83,17 @@ def get_args():
         "--mem",
         metavar="mem",
         help="Memory in GB per job",
+        default=8,
         type=int,
+    )
+
+    parser.add_argument(
+        "-p",
+        "--partition",
+        metavar="partition",
+        help="Enter the partition to use for the calculations. Default is kemi1",
+        default="kemi1",
+        type=str,
     )
 
     parser.add_argument(
@@ -97,36 +108,48 @@ def get_args():
         "-calc",
         "--calc_path",
         metavar="calc_path",
-        help="calculation path",
+        help="calculation path where the calculations are stored.",
         type=str,
     )
 
     parser.add_argument(
-        "-submitit",
+        "-submit",
         "--submitit_path",
         metavar="submitit_path",
-        help="submitit path",
+        help="submit path where log files are stored.",
         type=str,
     )
 
     parser.add_argument(
-        "-f", "--functional", metavar="functional", help="functional", type=str
+        "-f",
+        "--functional",
+        metavar="functional",
+        help="Add the functional to use for ORCA calculations. Default is CAM-B3LYP.",
+        default="CAM-B3LYP",
+        type=str,
     )
 
-    parser.add_argument("-b", "--basis", metavar="basis", help="basis set", type=str)
+    parser.add_argument(
+        "-b",
+        "--basis",
+        metavar="basis",
+        help="Enter the basis set to use for ORCA calculations. Default is def2-TZVPPD.",
+        default="def2-TZVPPD",
+        type=str,
+    )
 
     parser.add_argument(
         "-s",
         "--solvent",
         metavar="solvent",
-        help="Enter solvent name. Default is DMSO",
+        help="Enter solvent name. Default is DMSO.",
         default="DMSO",
         type=str,
     )
     parser.add_argument(
         "-d",
         "--dispersion",
-        help="set dispersion",
+        help="set dispersion to use for ORCA calculations. Default is False.",
         default=False,
         action="store_true",
     )
@@ -134,7 +157,7 @@ def get_args():
     parser.add_argument(
         "-o",
         "--opt",
-        help="set opt",
+        help="set optimization to use for ORCA calculations. Default is False.",
         default=False,
         action="store_true",
     )
@@ -142,7 +165,7 @@ def get_args():
     parser.add_argument(
         "-q",
         "--freq",
-        help="set freq",
+        help="set frequency to use for ORCA calculations. Default is False.",
         default=False,
         action="store_true",
     )
@@ -718,6 +741,7 @@ if __name__ == "__main__":
 
     num_cpu_single = args.cpus
     mem_gb = args.mem
+    partition = args.partition
     csv_path = args.csv_path
     calc_path = args.calc_path
     functional = args.functional
@@ -773,8 +797,8 @@ if __name__ == "__main__":
         name="pKalc",  # pKalculator
         cpus_per_task=int(num_cpu_single),
         mem_gb=int(mem_gb),
-        timeout_min=60000,  # 500 hours -> 20 days : 60000 --> 1000 hours -> 41 days
-        slurm_partition="kemi1",
+        timeout_min=500,  # 500 hours -> 20 days
+        slurm_partition=f"{partition}",
         slurm_array_parallelism=50,
     )
     print(executor)

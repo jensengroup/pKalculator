@@ -24,7 +24,7 @@ Both our QM workflow and ML workflow are accessible through the command line in 
 ### QM workflow
 Below is an example of how to start the QM workflow:
 
-    python src/pkalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submitit submitit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
+    python src/pkalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submit submit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
 
 The arguments for the QM workflow are explained below:
 | Arguments    | Description | 
@@ -66,8 +66,16 @@ Hereafter, a list of tuples are returned [(0, 23.14), (3, 18.78), (5, 42.42), (6
 
 The workflow then produces an .png or .svg image of the molecule with its atom indices for easy comparison. The image of the molecule will also contain a teal circle that highlights the site with the lowest pKa value or within (e) pKa units from the lowest pKa value.
 
-#### Datasets
-All datasets can be found in `data/datasets` in the `.pkl` format. Each `.pkl` contains a pandas DataFrame that can be loaded using the following command `dataset_full = joblib.load(data/datasets/dataset_full.pkl)`
+### Data
+All additionl data can be found on ['https://sid.erda.dk/sharelink/EyuyjllJdp'](https://sid.erda.dk/sharelink/EyuyjllJdp)
 
+Here the data is split into two folders `qm_data` and `ml_data` that represents QM workflow and the ML workflow, respectively. 
+
+| Folder    | Description |
+| :------- |:---------|
+| `datasets` | Includes all datasets. Each `.pkl` contains a pandas DataFrame that can be loaded using the following command `pd.read_pickle(datasets/{dataset name}, compression={'method': 'gzip'})`. |
+| `qm_data/calculations` | Includes all QM calculations, including .xyz files and .log files. |
+| `ml_data/models` | Includes trained ML models on either all data or ML models trained on the training set (80 % of the data). |
+| `ml_data/validation` | Includes data from the cross-validation for the ML models. The .log files gives an overview of the performance metrics. |
 
 ## Citation
