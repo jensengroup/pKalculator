@@ -1,13 +1,13 @@
 # pKalculator
 pKalculator is a fully automated quantum chemistry (QM)-based workflow that computes the C-H pKa values of molecules. The QM workflow uses GNF2-xTB with ORCA on top.
-pKalculator also includes an atom-based machine learning model (ML) to predict the C-H pKa values. The ML model (LightGBM regression model) is based on CM5 atomic charges that are computed using semiempirical tight binding (GFN1-xTB). 
+pKalculator also includes an atom-based machine learning model (ML) to predict the C-H pKa values. The ML model (LightGBM regression model) is based on CM5 atomic charges that are computed using semiempirical tight binding (GFN1-xTB).
 
 For more, see [pKalculator: A pKa predictor for C-H bonds](https://www.google.com)
 
 ## Installation
 We recommend using `conda` to get the required dependencies
 
-    conda env create -f environment.yml && conda activate pkalculator
+    conda create --name pKalculator --file requirements.txt && conda activate pkalculator
 
 Download the latest version of xtb (v. 6.7.0)
 
