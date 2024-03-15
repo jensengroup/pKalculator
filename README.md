@@ -2,21 +2,25 @@
 pKalculator is a fully automated quantum chemistry (QM)-based workflow that computes the C-H pKa values of molecules. The QM workflow uses GNF2-xTB with ORCA on top.
 pKalculator also includes an atom-based machine learning model (ML) to predict the C-H pKa values. The ML model (LightGBM regression model) is based on CM5 atomic charges that are computed using semiempirical tight binding (GFN1-xTB).
 
-For more, see [pKalculator: A pKa predictor for C-H bonds](https://www.google.com)
+For more, see [pKalculator: A pKa predictor for C-H bonds](https://doi.org/10.26434/chemrxiv-2024-56h5h)
 
 ## Installation
 We recommend using `conda` to get the required dependencies
 
-    conda create --name pKalculator --file requirements.txt && conda activate pkalculator
+    conda env create -f environment.yml && conda activate pkalculator
 
-Download the latest version of xtb (v. 6.7.0)
+We recommend downloading the precompiled binaries for the latest version of xTB (v. 6.7.0)
 
     cd dep; wget https://github.com/grimme-lab/xtb/releases/download/v6.7.0/xtb-6.7.0-linux-x86_64.tar.xz; tar -xvf ./xtb-6.7.0-linux-x86_64.tar.xz; cd ..
 
+If this does not work for your system, xTB can also be installed through `conda`
+    conda install -c conda-forge xtb
 
-Hereafter, ORCA (v. 5.0.4) is required. Installation instructions can be found at https://sites.google.com/site/orcainputlibrary/setting-up-orca
+For more information, please see: https://xtb-docs.readthedocs.io/en/latest/setup.html
 
-ORCA requires a specific path for our QM workflow to work. Therefore, follow the comments in "src/qm_pkalculator/run_orca.py" and modify the path accordingly.
+Hereafter, ORCA (v. 5.0.4) is required for the QM workflow. Installation instructions can be found at https://www.orcasoftware.de/tutorials_orca/first_steps/install.html and https://sites.google.com/site/orcainputlibrary/setting-up-orca
+
+ORCA requires a specific path for our QM workflow to work. Therefore, follow the comments in "qm_pkalculator/run_orca.py" and modify the path accordingly.
 
 ## Usage
 Both our QM workflow and ML workflow are accessible through the command line in the terminal.
@@ -24,7 +28,7 @@ Both our QM workflow and ML workflow are accessible through the command line in 
 ### QM workflow
 Below is an example of how to start the QM workflow:
 
-    python src/pkalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submit submit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
+    python pKalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submit submit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
 
 The arguments for the QM workflow are explained below:
 | Arguments    | Description | 
@@ -60,11 +64,14 @@ The arguments for the ML workflow are explained below:
 | `-s` | SMILES string. Defaults to 'CC(=O)Cc1ccccc1' |
 | `-n` | Name of the compound. Defaults to 'comp2' |
 | `-m` | Which model to be used. Defaults to the full regression model |
-| `-e` | Identify the possible site of reaction within (e) pKa units of the lowest pKa value. Defaults to the full regression model. |
+| `-e` | Identify the possible site of reaction within {number} pKa units of the lowest pKa value. Defaults to the full regression model. |
 
-Hereafter, a list of tuples are returned [(0, 23.14), (3, 18.78), (5, 42.42), (6, 42.9), (7, 43.27)]. The first element in each tuple is the atom index and the second element in each tuple is the ML predicted pKa value for that atom index.
+Hereafter, a list of tuples are returned:
+    `[(0, 23.14), (3, 18.78), (5, 42.42), (6, 42.9), (7, 43.27)]`
 
-The workflow then produces an .png or .svg image of the molecule with its atom indices for easy comparison. The image of the molecule will also contain a teal circle that highlights the site with the lowest pKa value or within (e) pKa units from the lowest pKa value.
+The first element in each tuple is the atom index and the second element in each tuple is the ML predicted pKa value for that atom index.
+
+The workflow then produces an .png or .svg image of the molecule with its atom indices for easy comparison. The image of the molecule will also contain a teal circle that highlights the site with the lowest pKa value or within {number} pKa units from the lowest pKa value.
 
 ### Data
 All additionl data can be found on ['https://sid.erda.dk/sharelink/EyuyjllJdp'](https://sid.erda.dk/sharelink/EyuyjllJdp)
