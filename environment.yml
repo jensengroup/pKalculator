@@ -1,0 +1,22 @@
+name: pkalculator
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - scipy
+  - scikit-learn
+  - ipython
+  - ipykernel
+  - matplotlib
+  - seaborn
+  - rdkit=2022.09.4
+  - notebook
+  - ase
+  - numpy
+  - pandas
+  - submitit
+  - openbabel
+  - py3dmol
+  - conda-forge::lightgbm
+  - joblib
