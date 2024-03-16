@@ -28,7 +28,7 @@ Both our QM workflow and ML workflow are accessible through the command line in 
 ### QM workflow
 Below is an example of how to start the QM workflow:
 
-    python pKalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submit submit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
+    python qm_pkalculator/qm_pkalculator.py -cpus 5 -mem 10 -csv test.smiles -calc calc_test -submit submit_test -f CAM-B3LYP -b def2-TZVPPD -s DMSO -d -o -f
 
 The arguments for the QM workflow are explained below:
 | Arguments    | Description | 
@@ -56,7 +56,7 @@ If needed, SLURM commands can be updated to work at your HPC.
 ### ML workflow
 Below is an example of how to use the ML workflow:
     
-    python src/pkalculator/ml_pkalculator.py -s CC(=O)Cc1ccccc1 -n comp2 -m ml_data/models/full_models/reg_model_all_data_dart.txt
+    python ml_pkalculator/ml_pkalculator.py -s CC(=O)Cc1ccccc1 -n comp2 -m models/reg_model_all_data_dart.txt
 
 The arguments for the ML workflow are explained below:
 | Arguments    | Description | 
