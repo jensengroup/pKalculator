@@ -4,6 +4,10 @@ pKalculator also includes an atom-based machine learning model (ML) to predict t
 
 For more, see [pKalculator: A pKa predictor for C-H bonds](https://doi.org/10.26434/chemrxiv-2024-56h5h)
 
+<a href="https://colab.research.google.com/drive/12Uxb6aZCm9mO0ehyEilIhfa99sJwrBqL?usp=sharing">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
 ## Installation
 We recommend using `conda` to get the required dependencies
 
@@ -99,7 +103,7 @@ The workflow then produces an .png or .svg image of the molecule with its atom i
 Both the QM workflow and the ML workflow uses GFN1-xTB to produce CM5 charges. The data from the xTB calculation is saved to  `data/calc_smi2gcs`.
 
 #### Additional data
-All additionl data can be found on [https://sid.erda.dk/sharelink/EyuyjllJdp](https://sid.erda.dk/sharelink/EyuyjllJdp)
+All additionl data can be found on [here](https://sid.erda.dk/sharelink/EyuyjllJdp)
 
 Here the data is split into three folders: `datasets`, `qm_data` and `ml_data`. The description for each folder is found below:
 
