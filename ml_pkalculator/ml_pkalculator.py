@@ -222,7 +222,7 @@ if __name__ == "__main__":
         error=error,
         legend="",
         img_size=(350, 300),
-        draw_option="png",
+        draw_option="svg",
         draw_legend=False,
         save_folder=save_folder,
         name=name,
