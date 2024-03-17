@@ -86,8 +86,8 @@ def compute_relative_energy(row, energy_col):
 
 
 def process_submitted_files(path_submitit: str, prelim_path=None) -> pd.DataFrame:
-    # if not Path(path_submitit).is_dir():
-    #     raise ValueError("path is not a directory")
+    if not Path(path_submitit).is_dir():
+        raise ValueError("path is not a directory")
 
     if prelim_path:
         try:
@@ -95,8 +95,8 @@ def process_submitted_files(path_submitit: str, prelim_path=None) -> pd.DataFram
         except FileNotFoundError:
             raise ValueError(f"{prelim_path} is not a valid path to a pickle file")
 
-    # df_submitted = load_pickles(path_submitit)
-    df_submitted = pd.read_pickle(path_submitit)
+    df_submitted = load_pickles(path_submitit)
+    # df_submitted = pd.read_pickle(path_submitit)
 
     if prelim_path:
         missing_names = set(df_prelim.names.unique()).difference(
