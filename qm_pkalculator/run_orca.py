@@ -235,92 +235,9 @@ def create_orca_input_rerun(
     print(f"{inp_name} created")
 
 
-# def create_orca_input_rerun(
-#     chrg,
-#     path,
-#     ncores=2,
-#     mem=10000,
-#     functional="",
-#     basis_set="",
-#     dispersion="",
-#     optfreq=False,
-#     solvent_name="DMSO",
-#     inp_name="orca_calc_rerun.inp",
-# ):
-#     lst_latest_geom = None
-#     orca_calc_xyz = "orca_calc.xyz"
-#     xtbopt_xyz = "xtbopt.xyz"
-
-#     if Path(Path(path) / "orca_calc.out").is_file():
-#         same_structure = check_input_output_structure_orca(
-#             path=path, xyzfile="orca_calc.xyz"
-#         )
-
-#         if not same_structure:
-#             if Path(Path(path) / xtbopt_xyz).is_file():
-#                 loaded_xyz_file = load_and_prepare_xyz(path=path, xyz_file=xtbopt_xyz)
-#                 print("using xtbopt.xyz to create 'orca_calc_rerun.inp'")
-#         elif same_structure and optfreq:
-#             lst_latest_geom = get_latest_geom(Path(path) / "orca_calc.out")
-#             print(
-#                 "using latest geometry optimization from orca_calc.out to create 'orca_calc_rerun.inp'"
-#             )
-#         elif Path(Path(path) / orca_calc_xyz).is_file():
-#             loaded_xyz_file = load_and_prepare_xyz(path=path, xyz_file=orca_calc_xyz)
-#             print("using orca_calc.xyz to create 'orca_calc_rerun.inp'")
-#     else:
-#         raise Exception(f"No .out or .xyz file found in {path}")
-
-#     with open(Path(f"{path}/{inp_name}"), "w") as input_file:
-#         input_file.write("# ORCA input file\n")
-
-#         if functional == "r2SCAN-3c":
-#             if optfreq:
-#                 input_file.write(f"!R2SCAN-3C Slowconv OPT FREQ CPCM({solvent_name})\n")
-#             else:
-#                 input_file.write("! SP R2SCAN-3C Slowconv CPCM\n")
-#         else:
-#             if dispersion:
-#                 input_file.write(f"! {functional} D4 {basis_set} Slowconv")
-#             else:
-#                 input_file.write(f"! {functional} {basis_set} Slowconv")
-
-#             if optfreq:
-#                 input_file.write(
-#                     f" OPT FREQ CPCM({solvent_name})\n"
-#                 )  # OPT and FREQ: Analytical Hessian is not implemented for SMD
-#             else:
-#                 input_file.write(" CPCM\n")
-
-#         # input_file.write('%base "orca_calc_rerun"')
-#         input_file.write(
-#             f"\n%maxcore {(mem * 0.75) / ncores}\n%pal nprocs {ncores} end\n"
-#         )
-
-#         if not optfreq:
-#             input_file.write(f'%cpcm smd true SMDsolvent "{solvent_name}" end\n')
-
-#         # code block for %sfc
-#         input_file.write("\n%scf\nMaxIter 5000\nend\n")
-#         # code block for %geom
-#         input_file.write(
-#             "\n%geom\nMaxIter 5000\nMaxStep 0.1\nend\n"
-#         )  # default value for MaxStep is 0.3
-#         input_file.write(f"\n*xyz {chrg} 1\n")
-#         if lst_latest_geom is not None:
-#             input_file.writelines(lst_latest_geom)
-#         else:
-#             input_file.writelines("".join(loaded_xyz_file))
-#         input_file.write("*")
-#     print(f"{inp_name} created")
-
-
 def run_orca_calculation(path, input_file="orca_calc.inp"):
     # Run ORCA calc here
-    # cmd = f'env - PATH="/software/kemi/Orca/orca_5_0_1_linux_x86-64_openmpi411:/software/kemi/openmpi/openmpi-4.1.1/bin:$PATH" LD_LIBRARY_PATH="/software/kemi/openmpi/openmpi-4.1.1/lib:$LD_LIBRARY_PATH" /bin/bash -c "/software/kemi/Orca/orca_5_0_1_linux_x86-64_openmpi411/orca {path}/orca_calc.inp"'
-    # try with newest version of ORCA 5.0.4
-    # cmd = f'env - PATH="/groups/kemi/borup/pKalculator/dep/orca_5_0_4:/software/kemi/openmpi/openmpi-4.1.1/bin:$PATH" LD_LIBRARY_PATH="/software/kemi/openmpi/openmpi-4.1.1/lib:$LD_LIBRARY_PATH" /bin/bash -c "/groups/kemi/borup/pKalculator/dep/orca_5_0_4/orca {path}/{input_file}"'
-
+    # Change the paths under the cmd variable to match your system
     cmd = f'env - PATH="/groups/kemi/borup/pKalculator/dep/orca_5_0_4:/software/kemi/openmpi/openmpi-4.1.1/bin:$PATH" LD_LIBRARY_PATH="/software/kemi/openmpi/openmpi-4.1.1/lib:$LD_LIBRARY_PATH" /bin/bash -c "/groups/kemi/borup/pKalculator/dep/orca_5_0_4/orca {path}/{input_file}"'
 
     proc = subprocess.Popen(

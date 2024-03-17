@@ -44,7 +44,7 @@ def get_args():
         "--prelim_path",
         metavar="prelim_path",
         help="path where the preliminary dataframe is.",
-        default="data/qm_calculations/df_prelim_calc_test_20240317.pkl",
+        default="data/qm_calculations/df_prelim_calc_test.pkl",
         type=str,
     )
 
@@ -53,7 +53,7 @@ def get_args():
         "--result_path",
         metavar="result_path",
         help="path where the resulting dataframe is placed.",
-        default="data/qm_calculations/df_results_calc_test_20240317.pkl",
+        default="data/qm_calculations/df_results_calc_test.pkl",
         type=str,
     )
 
@@ -86,8 +86,8 @@ def compute_relative_energy(row, energy_col):
 
 
 def process_submitted_files(path_submitit: str, prelim_path=None) -> pd.DataFrame:
-    if not Path(path_submitit).is_dir():
-        raise ValueError("path is not a directory")
+    # if not Path(path_submitit).is_dir():
+    #     raise ValueError("path is not a directory")
 
     if prelim_path:
         try:
@@ -95,8 +95,8 @@ def process_submitted_files(path_submitit: str, prelim_path=None) -> pd.DataFram
         except FileNotFoundError:
             raise ValueError(f"{prelim_path} is not a valid path to a pickle file")
 
-    # df_prelim = pd.read_pickle('/groups/kemi/borup/pKalculator/data/prelim/df_prelim_20231130.pkl')
-    df_submitted = load_pickles(path_submitit)
+    # df_submitted = load_pickles(path_submitit)
+    df_submitted = pd.read_pickle(path_submitit)
 
     if prelim_path:
         missing_names = set(df_prelim.names.unique()).difference(
