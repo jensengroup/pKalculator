@@ -11,7 +11,7 @@ We recommend using `conda` to get the required dependencies
 
 We recommend downloading the precompiled binaries for the latest version of xTB (v. 6.7.0)
 
-    cd dep; wget https://github.com/grimme-lab/xtb/releases/download/v6.7.0/xtb-6.7.0-linux-x86_64.tar.xz; tar -xvf ./xtb-6.7.0-linux-x86_64.tar.xz; mv xtb-dist xtb-6.7.0; cd ..
+    mkdir dep; cd dep; wget https://github.com/grimme-lab/xtb/releases/download/v6.7.0/xtb-6.7.0-linux-x86_64.tar.xz; tar -xvf ./xtb-6.7.0-linux-x86_64.tar.xz; mv xtb-dist xtb-6.7.0; cd ..
 
 If this does not work for your system, xTB can also be installed through `conda`
     conda install -c conda-forge xtb
