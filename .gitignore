@@ -10,12 +10,12 @@ reports/
 experimental/
 
 # 
-src/ml_pkalculator/ml_analyse.py
-src/ml_pkalculator/ml_train_on_all_data.py
-src/ml_pkalculator/ml_validator_clas.py
-src/ml_pkalculator/ml_validator_reg.py
-src/ml_pkalculator/ml_visualize.py
-src/ml_pkalculator/ml_optimizer.py
+ml_pkalculator/ml_analyse.py
+ml_pkalculator/ml_train_on_all_data.py
+ml_pkalculator/ml_validator_clas.py
+ml_pkalculator/ml_validator_reg.py
+ml_pkalculator/ml_visualize.py
+ml_pkalculator/ml_optimizer.py
 
 utils/post_cleanup.py
 utils/mol_visualize.py
