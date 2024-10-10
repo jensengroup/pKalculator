@@ -2,7 +2,7 @@
 pKalculator is a fully automated quantum chemistry (QM)-based workflow that computes the C-H pKa values of molecules. The QM workflow uses GNF2-xTB with ORCA on top.
 pKalculator also includes an atom-based machine learning model (ML) to predict the C-H pKa values. The ML model (LightGBM regression model) is based on CM5 atomic charges that are computed using semiempirical tight binding (GFN1-xTB).
 
-For more, see [pKalculator: A pKa predictor for C-H bonds](https://doi.org/10.26434/chemrxiv-2024-56h5h)
+For more, see [pKalculator: A pKa predictor for C-H bonds](https://doi.org/10.3762/bjoc.20.144)
 
 <a href="https://colab.research.google.com/drive/12Uxb6aZCm9mO0ehyEilIhfa99sJwrBqL?usp=sharing">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
@@ -115,3 +115,4 @@ Here the data is split into three folders: `datasets`, `qm_data` and `ml_data`. 
 | `ml_data/validation` | Includes data from the cross-validation for the ML models. The .log files gives an overview of the performance metrics. |
 
 ## Citation
+Beilstein J. Org. Chem. 2024, 20, 1614-1622
